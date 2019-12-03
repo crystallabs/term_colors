@@ -6,6 +6,49 @@
 
 Term_colors is a library containing color manipulation routines for term/console applications.
 
+Available functions:
+
+```
+# Takes color value and returns index of the nearest/closest
+# matching color in the current palette.
+  def match( r1 : String)
+  def match( r1 : Array)
+  def match( r1 : Tuple)
+  def match(r1, g1, b1)
+
+# Calculates color distance.
+  def color_distance(r1, g1, b1, r2, g2, b2)
+
+# Converts RGB to hex color value (#color).
+  def rgb_to_hex(r : Array)
+  def rgb_to_hex(r : Colorize::ColorRGB)
+  def rgb_to_hex(r, g, b)
+
+# Converts number to hex value with 2 places.
+  def to_hex2(n)
+
+# Converts number to hex value with 4 places.
+  def to_hex4(n)
+
+# Converts hex color value (#col or #color) to {r,g,b}.
+  def hex_to_rgb(hex : String)
+
+# Mixes colors.
+  def mix_colors(c1, c2, alpha=0.5)
+
+# Blends two attributes together, taking into account alpha/transparency value.
+  def blend(attr, attr2, alpha)
+
+# Converts color into lower/smaller color space.
+  def reduce(color, total)
+
+# Converts color to index in the current palette.
+  def convert(color : Int)
+  def convert(color : String)
+  def convert(color : Array)
+  def convert(color)
+```
+
 ### Testing
 
 Run `crystal spec` as usual.
