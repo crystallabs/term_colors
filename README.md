@@ -1,39 +1,39 @@
-# term_colors
+[![Build Status](https://travis-ci.com/crystallabs/term_colors.svg?branch=master)](https://travis-ci.com/crystallabs/term_colors)
+[![Version](https://img.shields.io/github/tag/crystallabs/term_colors.svg?maxAge=360)](https://github.com/crystallabs/term_colors/releases/latest)
+[![License](https://img.shields.io/github/license/crystallabs/term_colors.svg)](https://github.com/crystallabs/term_colors/blob/master/LICENSE)
 
-TODO: Write a description here
+# Term_colors
 
-## Installation
+Term_colors is a library containing color manipulation routines for term/console applications.
 
-1. Add the dependency to your `shard.yml`:
+### Testing
 
-   ```yaml
-   dependencies:
-     term_colors:
-       github: your-github-user/term_colors
-   ```
+Run `crystal spec` as usual.
 
-2. Run `shards install`
+### Documentation
 
-## Usage
+Run `crystal docs` as usual.
 
-```crystal
-require "term_colors"
-```
+## Thanks
 
-TODO: Write usage instructions here
+* All the fine folks on FreeNode IRC channel #crystal-lang and on Crystal's Gitter channel https://gitter.im/crystal-lang/crystal
 
-## Development
+## Other projects
 
-TODO: Write development instructions here
+List of interesting or similar projects in no particular order:
 
-## Contributing
+Colors-related:
 
-1. Fork it (<https://github.com/your-github-user/term_colors/fork>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+- https://crystal-lang.org/api/master/Colorize.html - Crystal's built-in module Colorize
+- https://github.com/veelenga/rainbow-spec - Rainbow spec formatter for Crystal
+- https://github.com/watzon/cor - Make working with colors in Crystal fun!
+- https://github.com/icyleaf/terminal - Terminal output styling
+- https://github.com/ndudnicz/selenite - Color representation convertion methods (rgb, hsv, hsl, ...) for Crystal
+- https://github.com/jaydorsey/colorls-cr - Crystal toy app for colorizing LS output
 
-## Contributors
+Terminal-related:
 
-- [Davor Ocelic](https://github.com/your-github-user) - creator and maintainer
+- https://github.com/crystallabs/terminfo - Library for parsing standard and extended terminfo files
+- https://github.com/crystallabs/tput - Low-level component for building term/console applications
+- https://github.com/crystallabs/term_app - Functional term/console app environment
+- https://github.com/crystallabs/crysterm - Console / terminal GUI toolkit for Crystal
