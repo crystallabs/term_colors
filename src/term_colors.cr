@@ -109,7 +109,7 @@ module TermColors
 
   # Takes color value and returns index of the nearest/closest matching color in the current palette.
   def match( r1 : String)
-    hex = r1;
+    hex = r1
     if (hex[0] != '#')
       raise "Color value must start with '#'"
     end
@@ -162,16 +162,6 @@ module TermColors
     CACHE_MATCH[hash] = li
   end
 
-  # Finds color similarity.
-  # As it happens, comparing how similar two colors are is really hard. Here is
-  # one of the simplest solutions, which doesn't require conversion to another
-  # color space, posted on stackoverflow{1}. Maybe someone better at math can
-  # propose a superior solution.
-  # {1} http:#stackoverflow.com/questions/1633828
-  def color_distance(r1, g1, b1, r2, g2, b2)
-    ((30 * (r1 - r2))**2) + ((59 * (g1 - g2))**2) + ((11 * (b1 - b2))**2)
-  end
-
   # Converts RGB to hex color value (#color)
   def rgb_to_hex(r : Array)
     rgb_to_hex r[0], r[1], r[2]
@@ -214,6 +204,16 @@ module TermColors
     g = (col >> 8) & 0xff
     b = col & 0xff
     {r, g, b}
+  end
+
+  # Finds color similarity.
+  # As it happens, comparing how similar two colors are is really hard. Here is
+  # one of the simplest solutions, which doesn't require conversion to another
+  # color space, posted on stackoverflow{1}. Maybe someone better at math can
+  # propose a superior solution.
+  # {1} http:#stackoverflow.com/questions/1633828
+  def color_distance(r1, g1, b1, r2, g2, b2)
+    ((30 * (r1 - r2))**2) + ((59 * (g1 - g2))**2) + ((11 * (b1 - b2))**2)
   end
 
   # Mixes colors.
