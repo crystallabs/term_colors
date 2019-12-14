@@ -4,9 +4,20 @@
 
 # Term_colors
 
+## Installation
+
+Add the dependency to `shard.yml`:
+
+```yaml
+dependencies:
+  term_colors:
+    github: crystallabs/term_colors
+    version: 0.1.0
+```
+
 Term_colors is a library containing color manipulation routines for term/console applications.
 
-Available functions:
+## Available functions
 
 ```
 # Takes color value and returns index of the nearest/closest
