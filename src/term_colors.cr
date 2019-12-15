@@ -348,4 +348,11 @@ module TermColors
     convert -1
   end
 
+  # Represents Colors class.
+  #
+  # This class should be used when a class is preferred
+  # over using a module.
+  class Data
+    include ::TermColors
+  end
 end
