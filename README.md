@@ -12,7 +12,7 @@ Add the dependency to `shard.yml`:
 dependencies:
   term_colors:
     github: crystallabs/term_colors
-    version: 0.1.0
+    version: 0.1.1
 ```
 
 Term_colors is a library containing color manipulation routines for term/console applications.

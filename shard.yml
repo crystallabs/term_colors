@@ -1,9 +1,9 @@
 name: term_colors
-version: 0.1.0
+version: 0.1.1
 
 authors:
   - Davor Ocelic <docelic@crystallabs.io>
 
-crystal: 0.32.0
+crystal: 0.34.0
 
 license: MIT

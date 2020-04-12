@@ -11,7 +11,7 @@
 #
 # TODO: Add TrueColor functionality
 module TermColors
-  VERSION = "0.1.0"
+  VERSION = "0.1.1"
 
   # Storage cache for `#match` method
   CACHE_MATCH = {} of Int32 => Int32
