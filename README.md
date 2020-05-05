@@ -4,6 +4,10 @@
 
 # Term_colors
 
+Term_colors is a library containing color manipulation routines for term/console applications.
+
+It deals with color manipulation/conversion functions, not with the output to the terminal.
+
 ## Installation
 
 Add the dependency to `shard.yml`:
@@ -14,8 +18,6 @@ dependencies:
     github: crystallabs/term_colors
     version: 0.1.1
 ```
-
-Term_colors is a library containing color manipulation routines for term/console applications.
 
 ## Available functions
 
