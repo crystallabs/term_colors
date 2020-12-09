@@ -2,11 +2,18 @@
 [![Version](https://img.shields.io/github/tag/crystallabs/term_colors.svg?maxAge=360)](https://github.com/crystallabs/term_colors/releases/latest)
 [![License](https://img.shields.io/github/license/crystallabs/term_colors.svg)](https://github.com/crystallabs/term_colors/blob/master/LICENSE)
 
-# Term_colors
+# Term Colors
 
 Term_colors is a library containing color manipulation routines for term/console applications.
 
-It deals with color manipulation/conversion functions, not with the output to the terminal.
+Terminal apps can use 5 different palettes:
+1. Monochrome (2-color)
+2. Low color (8-color)
+3. ANSI / XTerm color (16-color)
+4. High color (256-color)
+5. TrueColor (16M-color/24-bit color)
+
+This module provides color-related functions for the first 4 types. TrueColor is not supported yet.
 
 ## Installation
 
@@ -16,7 +23,7 @@ Add the dependency to `shard.yml`:
 dependencies:
   term_colors:
     github: crystallabs/term_colors
-    version: 0.1.1
+    version: 0.1.2
 ```
 
 ## Available functions

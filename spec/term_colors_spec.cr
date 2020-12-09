@@ -35,22 +35,22 @@ describe TermColors do
     obj.hex_to_rgb("#23ce9a").should eq({35, 206, 154})
   end
   it "has ccolors and ncolors" do
-    TermColors::Ncolors[0].should eq "black"
-    TermColors::Ncolors[255].should eq "white"
-    TermColors::Ncolors.size.should eq 256
+    TermColors::HI2LN[0].should eq "black"
+    TermColors::HI2LN[255].should eq "white"
+    TermColors::HI2LN.size.should eq 256
 
-    TermColors::Ccolors[0].should eq 0
-    TermColors::Ccolors[255].should eq 7
-    TermColors::Ccolors.size.should eq 256
+    TermColors::HI2LI[0].should eq 0
+    TermColors::HI2LI[255].should eq 7
+    TermColors::HI2LI.size.should eq 256
   end
   it "has colors and vcolors" do
-    TermColors::Colors[0].should eq "#000000"
-    TermColors::Colors[255].should eq "#eeeeee"
-    TermColors::Colors.size.should eq 256
+    TermColors::HI2HH[0].should eq "#000000"
+    TermColors::HI2HH[255].should eq "#eeeeee"
+    TermColors::HI2HH.size.should eq 256
 
-    TermColors::Vcolors[0].should eq Tuple.new(0,0,0)
-    TermColors::Vcolors[255].should eq Tuple.new(238,238,238)
-    TermColors::Vcolors.size.should eq 256
+    TermColors::HI2RGB[0].should eq Tuple.new(0,0,0)
+    TermColors::HI2RGB[255].should eq Tuple.new(238,238,238)
+    TermColors::HI2RGB.size.should eq 256
   end
   it "can reduce" do
     obj = ClsColors.new
