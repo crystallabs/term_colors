@@ -127,7 +127,7 @@ module TermColors
     match *r1
   end
   # :ditto:
-  def match(r1, g1, b1)
+  def match(r1 : Int, g1 : Int, b1 : Int)
     hash : Int32 = (r1 << 16) | (g1 << 8) | b1
 
     if CACHE_MATCH.has_key? hash
@@ -245,11 +245,7 @@ module TermColors
 
   # Blends two attributes together, taking into account alpha/transparency value.
   # Both the background and the foreground attributes are blended.
-  def blend(attr, attr2, alpha)
-    attr  ||= 0
-    attr2 ||= 0
-    alpha ||= 0.5
-
+  def blend(attr=0, attr2=0, alpha : Float = 0.5)
     # First blend background
     bg = attr & 0x1ff
     if !attr2.nil?
@@ -285,7 +281,7 @@ module TermColors
     attr
   end
 
-  protected def _round(c)
+  def _round(c)
     if CACHE_BLEND[c]?
       c = CACHE_BLEND[c]
     # } else if (bg < 8) {
