@@ -86,8 +86,8 @@ describe TermColors do
     obj = ClsColors.new
     obj.blend(7, 11, 1).should eq 11
     obj.blend(34, 213, 0.1).should eq 34
-    obj.blend(nil, 213, 0.5).should eq 96
-    obj.blend(34, nil, 0.5).should eq 22
+    obj.blend(0, 213, 0.5).should eq 96
+    obj.blend(34, 0, 0.5).should eq 22
   end
   it "can convert colors" do
     obj = ClsColors.new

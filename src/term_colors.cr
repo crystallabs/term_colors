@@ -11,7 +11,7 @@
 #
 # TODO: Add TrueColor functionality
 module TermColors
-  VERSION = "0.1.2"
+  VERSION = "1.0.0"
 
   # Storage cache for `#match` method
   CACHE_MATCH = {} of Int32 => Int32
@@ -245,7 +245,7 @@ module TermColors
 
   # Blends two attributes together, taking into account alpha/transparency value.
   # Both the background and the foreground attributes are blended.
-  def blend(attr=0, attr2=0, alpha : Float = 0.5)
+  def blend(attr=0, attr2=0, alpha : Float | Int = 0.5)
     # First blend background
     bg = attr & 0x1ff
     if !attr2.nil?
