@@ -23,7 +23,7 @@ Add the dependency to `shard.yml`:
 dependencies:
   term_colors:
     github: crystallabs/term_colors
-    version: 1.0.0
+    version: ~> 1.0
 ```
 
 ## Available functions
