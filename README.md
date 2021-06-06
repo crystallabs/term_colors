@@ -79,7 +79,7 @@ Run `crystal docs` as usual.
 
 ## Thanks
 
-* All the fine folks on FreeNode IRC channel #crystal-lang and on Crystal's Gitter channel https://gitter.im/crystal-lang/crystal
+* All the fine folks on Libera.Chat IRC channel #crystal-lang and on Crystal's Gitter channel https://gitter.im/crystal-lang/crystal
 
 ## Other projects
 
