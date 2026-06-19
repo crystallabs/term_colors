@@ -17,21 +17,21 @@ describe TermColors do
   end
   it "knows color distance" do
     obj = ClsColors.new
-    r= obj.color_distance(0,0,0,255,255,255)
+    r = obj.color_distance(0, 0, 0, 255, 255, 255)
     r.should eq 292742550
-    r= obj.color_distance(255,255,255,0,0,0)
+    r = obj.color_distance(255, 255, 255, 0, 0, 0)
     r.should eq 292742550
-    r= obj.color_distance(10,12,190,117,34,112)
+    r = obj.color_distance(10, 12, 190, 117, 34, 112)
     r.should eq 12725068
   end
   it "can convert rgb2hex, hex2rgb" do
     obj = ClsColors.new
-    obj.rgb_to_hex([0,0,0]).should eq "#000000"
-    obj.rgb_to_hex(255,255,255).should eq "#ffffff"
-    obj.rgb_to_hex(12,219,114).should eq "#0cdb72"
-    obj.rgb_to_hex(Colorize::ColorRGB.new 12,219,114).should eq "#0cdb72"
-    obj.hex_to_rgb("#fff").should eq Tuple.new(255,255,255)
-    obj.hex_to_rgb("#000000").should eq({0,0,0})
+    obj.rgb_to_hex([0, 0, 0]).should eq "#000000"
+    obj.rgb_to_hex(255, 255, 255).should eq "#ffffff"
+    obj.rgb_to_hex(12, 219, 114).should eq "#0cdb72"
+    obj.rgb_to_hex(Colorize::ColorRGB.new 12, 219, 114).should eq "#0cdb72"
+    obj.hex_to_rgb("#fff").should eq Tuple.new(255, 255, 255)
+    obj.hex_to_rgb("#000000").should eq({0, 0, 0})
     obj.hex_to_rgb("#23ce9a").should eq({35, 206, 154})
   end
   it "has ccolors and ncolors" do
@@ -48,30 +48,30 @@ describe TermColors do
     TermColors::HI2HH[255].should eq "#eeeeee"
     TermColors::HI2HH.size.should eq 256
 
-    TermColors::HI2RGB[0].should eq Tuple.new(0,0,0)
-    TermColors::HI2RGB[255].should eq Tuple.new(238,238,238)
+    TermColors::HI2RGB[0].should eq Tuple.new(0, 0, 0)
+    TermColors::HI2RGB[255].should eq Tuple.new(238, 238, 238)
     TermColors::HI2RGB.size.should eq 256
   end
   it "can reduce" do
     obj = ClsColors.new
-    r= obj.reduce 98, 8
+    r = obj.reduce 98, 8
     r.should eq 4
-    r= obj.reduce 98, 16
+    r = obj.reduce 98, 16
     r.should eq 4
-    r= obj.reduce 98, 2
+    r = obj.reduce 98, 2
     r.should eq 0
   end
   it "can find nearest colors" do
     obj = ClsColors.new
-    r= obj.match(229,229,229)
+    r = obj.match(229, 229, 229)
     r.should eq 7
-    r= obj.match(Tuple.new(229,229,229))
+    r = obj.match(Tuple.new(229, 229, 229))
     r.should eq 7
-    r= obj.match([229,229,229])
+    r = obj.match([229, 229, 229])
     r.should eq 7
-    r= obj.match([229,229,230])
+    r = obj.match([229, 229, 230])
     r.should eq 7
-    r= obj.match([229,229,235])
+    r = obj.match([229, 229, 235])
     r.should eq 7
   end
   it "can mix RGB colors" do
@@ -87,7 +87,7 @@ describe TermColors do
     obj.convert(0xff8800).should eq 0xff8800 # native int passthrough
     obj.convert(-1).should eq -1             # default
     obj.convert("#ff8800").should eq 0xff8800
-    obj.convert("white").should eq 0xe5e5e5  # name -> RGB
+    obj.convert("white").should eq 0xe5e5e5 # name -> RGB
     obj.convert("default").should eq -1
     obj.convert([255, 255, 255]).should eq 0xffffff
     obj.convert({16, 32, 48}).should eq 0x102030
