@@ -236,9 +236,12 @@ module TermColors
     g2 = c2[1]
     b2 = c2[2]
 
-    r1 += ((r2 - r1) * alpha).to_i
-    g1 += ((g2 - g1) * alpha).to_i
-    b1 += ((b2 - b1) * alpha).to_i
+    # `alpha` is the opacity of the first color (c1), per the standard meaning:
+    # alpha=1.0 keeps c1 fully (full opacity); alpha=0.0 yields c2 (c1 fully
+    # transparent); alpha=0.5 is the midpoint.
+    r1 += ((r2 - r1) * (1 - alpha)).to_i
+    g1 += ((g2 - g1) * (1 - alpha)).to_i
+    b1 += ((b2 - b1) * (1 - alpha)).to_i
 
     match r1, g1, b1
   end
