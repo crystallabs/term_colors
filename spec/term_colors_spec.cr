@@ -59,7 +59,7 @@ describe TermColors do
     r= obj.reduce 98, 16
     r.should eq 4
     r= obj.reduce 98, 2
-    r.should eq 4
+    r.should eq 0
   end
   it "can find nearest colors" do
     obj = ClsColors.new

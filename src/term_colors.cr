@@ -248,7 +248,7 @@ module TermColors
 
   # Blends two attributes together, taking into account alpha/transparency value.
   # Both the background and the foreground attributes are blended.
-  def blend(attr=0, attr2=0, alpha : Float | Int = 0.5)
+  def blend(attr=0, attr2 : Int? = nil, alpha : Float | Int = 0.5)
     # First blend background
     bg = attr & 0x1ff
     if !attr2.nil?
@@ -271,7 +271,6 @@ module TermColors
         # workaround
         fg = 248
       else
-        if (fg == 0x1ff);  fg = 7 end
         if (fg2 == 0x1ff); fg2 = 7 end
         fg = mix_colors(fg, fg2, alpha)
       end
@@ -294,7 +293,7 @@ module TermColors
     else
       if name = HI2LN[c]?
         i= -1
-        while i < HI2LN.size
+        while i < HI2LN.size - 1
           i += 1
           if (name == HI2LN[i]) && (i != c)
             c2 = HI2RGB[c]
@@ -317,11 +316,16 @@ module TermColors
   # reduce(color, @tput.colors)
   # ```
   def reduce(color, total)
+    # Cascade through the palettes so e.g. a 256-color reduces 256->8->2.
+    # These must be independent `if`s (not `elsif`): reducing to 2 colors
+    # requires first collapsing a high color into the 8-color range.
     if(color >= 16 && total <= 16)
       color = HI2LI[color]
-    elsif(color >= 8 && total <= 8)
+    end
+    if(color >= 8 && total <= 8)
       color -= 8
-    elsif(color >= 2 && total <= 2)
+    end
+    if(color >= 2 && total <= 2)
       color %= 2
     end
     color
