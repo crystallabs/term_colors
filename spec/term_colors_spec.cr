@@ -74,33 +74,39 @@ describe TermColors do
     r= obj.match([229,229,235])
     r.should eq 7
   end
-  it "can mix colors" do
+  it "can mix RGB colors" do
     obj = ClsColors.new
-    # TODO check if these are correct values
-    obj.mix_colors(0,7).should eq 243
-    obj.mix_colors(1,207).should eq 162
-    obj.mix_colors(3,99).should eq 247
-    obj.mix_colors(4,81).should eq 27
+    # `alpha` is the opacity/weight of the first color: 1.0 keeps it fully.
+    obj.mix(0x000000, 0xffffff, 0.5).should eq 0x7f7f7f
+    obj.mix(0xff0000, 0x0000ff, 0.5).should eq 0x7f007f
+    obj.mix(0x123456, 0xabcdef, 1.0).should eq 0x123456
+    obj.mix(0x123456, 0xabcdef, 0.0).should eq 0xabcdef
   end
-  it "can blend" do
+  it "can convert color specs to native RGB" do
     obj = ClsColors.new
-    # alpha is the opacity of the first attribute: alpha=1 keeps it fully.
-    obj.blend(7, 11, 1).should eq 7
-    obj.blend(34, 213, 0.1).should eq 176
-    obj.blend(0, 213, 0.5).should eq 96
-    obj.blend(34, 0, 0.5).should eq 22
+    obj.convert(0xff8800).should eq 0xff8800 # native int passthrough
+    obj.convert(-1).should eq -1             # default
+    obj.convert("#ff8800").should eq 0xff8800
+    obj.convert("white").should eq 0xe5e5e5  # name -> RGB
+    obj.convert("default").should eq -1
+    obj.convert([255, 255, 255]).should eq 0xffffff
+    obj.convert({16, 32, 48}).should eq 0x102030
+    obj.convert(:wrong).should eq -1
   end
-  it "can convert colors" do
+  it "maps hex strings and palette indices to native RGB" do
     obj = ClsColors.new
-    # TODO check if these are correct values
-    r= obj.convert 7
-    r.should eq 7
-    r= obj.convert "white"
-    r.should eq 7
-    r= obj.convert [255,255,255]
-    r.should eq 15
-    r= obj.convert( :wrong)
-    r.should eq 511
+    obj.hex_to_int("#0cdb72").should eq 0x0cdb72
+    obj.hex_to_int("#fff").should eq 0xffffff
+    obj.palette_to_rgb(0).should eq 0x000000
+    obj.palette_to_rgb(15).should eq 0xffffff
+  end
+  it "builds colorspace-aware SGR color fragments" do
+    obj = ClsColors.new
+    obj.sgr_color(0xff8800, true, 0x1000000).should eq "38;2;255;136;0"
+    obj.sgr_color(0x102030, false, 0x1000000).should eq "48;2;16;32;48"
+    obj.sgr_color(0xff8800, true, 256).should eq "38;5;208"
+    obj.sgr_color(0xcd0000, true, 16).should eq "31"
+    obj.sgr_color(-1, true, 256).should eq "39"
   end
   it "has to_hex2 and to_hex4" do
     obj = ClsColors.new

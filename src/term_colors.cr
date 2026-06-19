@@ -216,98 +216,22 @@ module TermColors
     ((30 * (r1 - r2))**2) + ((59 * (g1 - g2))**2) + ((11 * (b1 - b2))**2)
   end
 
-  # Mixes colors.
-  # Mixing is done in the context of current palette and colors must exist in it.
-  # This might work well enough for terminal's colors: treat RGB as XYZ in a
-  # 3-dimensional space and go midway between the two points.
-  def mix_colors(c1, c2, alpha=0.5)
-    #if (c1 == 0x1ff) return c1
-    #if (c2 == 0x1ff) return c1
-    c1 = 0 if c1 == 0x1ff
-    c2 = 0 if c2 == 0x1ff
+  # Mixes two 24-bit RGB colors in RGB space. `alpha` is the opacity/weight of
+  # `c1` (1.0 keeps `c1` fully, 0.0 yields `c2`, 0.5 is the midpoint) — the same
+  # convention as the former palette `mix_colors`. Returns a `0xRRGGBB` value.
+  #
+  # NOTE: now operates directly in RGB (TrueColor), so no palette lookups are
+  # needed. The old palette-index `mix_colors`/`blend`/`_round` helpers have been
+  # removed; consumers blend at full RGB precision and only reduce on output.
+  def mix(c1 : Int, c2 : Int, alpha = 0.5) : Int32
+    r1 = (c1 >> 16) & 0xff; g1 = (c1 >> 8) & 0xff; b1 = c1 & 0xff
+    r2 = (c2 >> 16) & 0xff; g2 = (c2 >> 8) & 0xff; b2 = c2 & 0xff
 
-    c1 = HI2RGB[c1]
-    r1 = c1[0]
-    g1 = c1[1]
-    b1 = c1[2]
+    r = (r1 + ((r2 - r1) * (1 - alpha))).to_i & 0xff
+    g = (g1 + ((g2 - g1) * (1 - alpha))).to_i & 0xff
+    b = (b1 + ((b2 - b1) * (1 - alpha))).to_i & 0xff
 
-    c2 = HI2RGB[c2]
-    r2 = c2[0]
-    g2 = c2[1]
-    b2 = c2[2]
-
-    # `alpha` is the opacity of the first color (c1), per the standard meaning:
-    # alpha=1.0 keeps c1 fully (full opacity); alpha=0.0 yields c2 (c1 fully
-    # transparent); alpha=0.5 is the midpoint.
-    r1 += ((r2 - r1) * (1 - alpha)).to_i
-    g1 += ((g2 - g1) * (1 - alpha)).to_i
-    b1 += ((b2 - b1) * (1 - alpha)).to_i
-
-    match r1, g1, b1
-  end
-
-  # Blends two attributes together, taking into account alpha/transparency value.
-  # Both the background and the foreground attributes are blended.
-  def blend(attr=0, attr2 : Int? = nil, alpha : Float | Int = 0.5)
-    # First blend background
-    bg = attr & 0x1ff
-    if !attr2.nil?
-      bg2 = attr2 & 0x1ff
-      if (bg == 0x1ff);  bg = 0 end
-      if (bg2 == 0x1ff); bg2 = 0 end
-      bg = mix_colors(bg, bg2, alpha)
-    else
-      bg = _round(bg)
-    end
-    attr &= ~0x1ff
-    attr |= bg
-
-    # Then blend foreground
-    fg = (attr >> 9) & 0x1ff
-    if !attr2.nil?
-      fg2 = (attr2 >> 9) & 0x1ff
-      # 0, 7, 188, 231, 251
-      if fg == 0x1ff
-        # workaround
-        fg = 248
-      else
-        if (fg2 == 0x1ff); fg2 = 7 end
-        fg = mix_colors(fg, fg2, alpha)
-      end
-    else
-      fg = _round fg
-    end
-    attr &= ~(0x1ff << 9)
-    attr |= fg << 9
-
-    attr
-  end
-
-  def _round(c)
-    if CACHE_BLEND[c]?
-      c = CACHE_BLEND[c]
-    # } else if (bg < 8) {
-    #   bg += 8
-    elsif (c >= 8) && (c <= 15)
-      c -= 8
-    else
-      if name = HI2LN[c]?
-        i= -1
-        while i < HI2LN.size - 1
-          i += 1
-          if (name == HI2LN[i]) && (i != c)
-            c2 = HI2RGB[c]
-            nc = HI2RGB[i]
-            if (nc[0] + nc[1] + nc[2]) < (c2[0] + c2[1] + c2[2])
-              CACHE_BLEND[c] = i
-              c = i
-              break
-            end
-          end
-        end
-      end
-    end
-    c
+    (r << 16) | (g << 8) | b
   end
 
   # Converts color into lower/smaller color space.
@@ -331,24 +255,79 @@ module TermColors
     color
   end
 
-  # Converts color to index in the current palette.
+  # Parses a color spec into the native color value: `-1` for the terminal
+  # default, or a 24-bit `0xRRGGBB` integer.
+  #
+  # NOTE: the native color space is now TrueColor. This used to return a
+  # 256-color *palette index*; it now returns the full RGB value, and reduction
+  # to a smaller palette happens only at output time (see `sgr_color`).
   def convert(color : Int)
-    return color != -1 ? color : 0x1ff
+    # Already a native color value (`-1` or `0xRRGGBB`).
+    color
   end
   # :ditto:
   def convert(color : String)
-    #color = color.gsub(/{\- }/, "")
     color = color.gsub(/[\- ]/, "")
-    color = ColorNames[color]? || match(color)
-    convert color
+    return hex_to_int color if color.starts_with? '#'
+    if idx = ColorNames[color]?
+      return idx == -1 ? -1 : hex_to_int(Xterm[idx])
+    end
+    -1
+  end
+  # :ditto:
+  def convert(color : Tuple)
+    (color[0].to_i << 16) | (color[1].to_i << 8) | color[2].to_i
   end
   # :ditto:
   def convert(color : Array)
-    convert match color
+    (color[0].to_i << 16) | (color[1].to_i << 8) | color[2].to_i
   end
   # :nodoc:
   def convert(color)
-    convert -1
+    -1
+  end
+
+  # Converts a hex color value (`#abc` or `#rrggbb`) to a 24-bit `0xRRGGBB`
+  # integer.
+  def hex_to_int(hex : String) : Int32
+    r, g, b = hex_to_rgb hex
+    (r << 16) | (g << 8) | b
+  end
+
+  # Maps a 256-color palette index to its native 24-bit `0xRRGGBB` value (used
+  # when parsing incoming `38;5;n`/ANSI SGR codes into the RGB-native form).
+  def palette_to_rgb(idx : Int) : Int32
+    if c = HI2RGB[idx]?
+      (c[0] << 16) | (c[1] << 8) | c[2]
+    else
+      0
+    end
+  end
+
+  # Builds the SGR parameter fragment encoding one color for a terminal that
+  # supports `colors` colors, choosing the richest encoding that fits:
+  # TrueColor (`38;2;r;g;b`), 256-color (`38;5;n`), or 16/8-color ANSI
+  # (`30..37`/`90..97`). `color` is a native color (`-1` for default, or
+  # `0xRRGGBB`); `fg` selects foreground (38/3x/9x) vs background (48/4x/10x).
+  def sgr_color(color : Int, fg : Bool, colors : Int) : String
+    return fg ? "39" : "49" if color == -1
+
+    r = (color >> 16) & 0xff
+    g = (color >> 8) & 0xff
+    b = color & 0xff
+
+    if colors >= 0x1000000
+      return "#{fg ? 38 : 48};2;#{r};#{g};#{b}"
+    end
+
+    idx = reduce(match(r, g, b), colors)
+    if idx < 8
+      (fg ? 30 + idx : 40 + idx).to_s
+    elsif idx < 16
+      (fg ? 90 + (idx - 8) : 100 + (idx - 8)).to_s
+    else
+      "#{fg ? 38 : 48};5;#{idx}"
+    end
   end
 
   # Represents Colors class.
