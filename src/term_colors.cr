@@ -239,6 +239,41 @@ module TermColors
     (r << 16) | (g << 8) | b
   end
 
+  # Converts an HSV color to a packed `0xRRGGBB` integer (24-bit RGB).
+  #
+  # *h* is a hue in degrees (wrapped into `0..360`); *s* and *v* are the
+  # saturation and value in `0.0..1.0`. This is the allocation-free counterpart
+  # of `#hsv`, which formats the same value as a `#rrggbb` string.
+  def hsv_i(h : Int | Float, s : Float64 = 1.0, v : Float64 = 1.0) : Int32
+    hh = h.to_f % 360.0
+    hh += 360.0 if hh < 0
+    c = v * s
+    x = c * (1 - (((hh / 60.0) % 2) - 1).abs)
+    m = v - c
+    rf, gf, bf = case (hh.to_i // 60) % 6
+                 when 0 then {c, x, 0.0}
+                 when 1 then {x, c, 0.0}
+                 when 2 then {0.0, c, x}
+                 when 3 then {0.0, x, c}
+                 when 4 then {x, 0.0, c}
+                 else        {c, 0.0, x}
+                 end
+    r = ((rf + m) * 255).to_i.clamp(0, 255)
+    g = ((gf + m) * 255).to_i.clamp(0, 255)
+    b = ((bf + m) * 255).to_i.clamp(0, 255)
+    (r << 16) | (g << 8) | b
+  end
+
+  # Converts an HSV color to a `#rrggbb` hex string.
+  #
+  # *h* is a hue in degrees (wrapped into `0..360`); *s* and *v* are the
+  # saturation and value in `0.0..1.0`. The defaults (`s = v = 1.0`) give a
+  # fully-saturated, full-brightness color — the common case for color cycling.
+  # For the allocation-free packed-integer form, see `#hsv_i`.
+  def hsv(h : Int | Float, s : Float64 = 1.0, v : Float64 = 1.0) : String
+    "#%06x" % hsv_i(h, s, v)
+  end
+
   # Converts color into lower/smaller color space.
   #
   # ```

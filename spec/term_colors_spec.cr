@@ -114,4 +114,21 @@ describe TermColors do
     obj.to_hex2(12).should eq "0c"
     obj.to_hex4(255).should eq "00ff"
   end
+  it "converts HSV to RGB" do
+    obj = ClsColors.new
+    # Fully saturated, full-brightness primaries/secondaries around the wheel.
+    obj.hsv_i(0).should eq 0xff0000
+    obj.hsv_i(60).should eq 0xffff00
+    obj.hsv_i(120).should eq 0x00ff00
+    obj.hsv_i(240).should eq 0x0000ff
+    # Hue wraps into 0..360.
+    obj.hsv_i(360).should eq 0xff0000
+    obj.hsv_i(-120).should eq 0x0000ff
+    # Saturation/value extremes.
+    obj.hsv_i(120, 0.0).should eq 0xffffff      # s=0 -> white
+    obj.hsv_i(120, 1.0, 0.0).should eq 0x000000 # v=0 -> black
+    # String form.
+    obj.hsv(120).should eq "#00ff00"
+    obj.hsv(0).should eq "#ff0000"
+  end
 end
