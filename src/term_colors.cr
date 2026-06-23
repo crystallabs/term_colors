@@ -16,6 +16,12 @@ module TermColors
   # Storage cache for `#match` method
   CACHE_MATCH = {} of Int32 => Int32
 
+  # Upper bound on `CACHE_MATCH`. Its key is the full 24-bit RGB value, so an
+  # animated TrueColor source reduced to 256 colors can feed `#match` an
+  # unbounded stream of distinct keys; without a cap the cache grows forever.
+  # On overflow it is cleared wholesale (cheap, and the working set re-warms).
+  CACHE_MATCH_LIMIT = 65_536
+
   # Storage cache for `#blend` method
   CACHE_BLEND = {} of Int32 => Int32
 
@@ -133,36 +139,38 @@ module TermColors
   def match(r1 : Int, g1 : Int, b1 : Int)
     hash : Int32 = (r1 << 16) | (g1 << 8) | b1
 
-    if CACHE_MATCH.has_key? hash
-      return CACHE_MATCH[hash]
-    end
+    # Single hash probe on the (hot) cache-hit path: `fetch` returns the stored
+    # value when present, otherwise runs the block once. The old `has_key?` +
+    # `[]` probed the hash twice on every hit.
+    CACHE_MATCH.fetch(hash) do
+      # ldiff = Float64::INFINITY
+      ldiff = Int32::MAX # Make it match type of `CACHE_MATCH` above.
+      li = -1
+      i = 0
 
-    # ldiff = Float64::INFINITY
-    ldiff = Int32::MAX # Make it match type of `CACHE_MATCH` above.
-    li = -1
-    i = 0
+      while i < HI2RGB.size
+        c = HI2RGB[i]
+        r2 = c[0]
+        g2 = c[1]
+        b2 = c[2]
 
-    while i < HI2RGB.size
-      c = HI2RGB[i]
-      r2 = c[0]
-      g2 = c[1]
-      b2 = c[2]
+        diff = color_distance(r1, g1, b1, r2, g2, b2)
 
-      diff = color_distance(r1, g1, b1, r2, g2, b2)
+        if (diff == 0)
+          li = i
+          break
+        end
 
-      if (diff == 0)
-        li = i
-        break
+        if (diff < ldiff)
+          ldiff = diff
+          li = i
+        end
+        i += 1
       end
 
-      if (diff < ldiff)
-        ldiff = diff
-        li = i
-      end
-      i += 1
+      CACHE_MATCH.clear if CACHE_MATCH.size >= CACHE_MATCH_LIMIT
+      CACHE_MATCH[hash] = li
     end
-
-    CACHE_MATCH[hash] = li
   end
 
   # Converts RGB to hex color value (#color)
