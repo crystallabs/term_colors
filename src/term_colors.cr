@@ -240,9 +240,26 @@ module TermColors
     r1 = (c1 >> 16) & 0xff; g1 = (c1 >> 8) & 0xff; b1 = c1 & 0xff
     r2 = (c2 >> 16) & 0xff; g2 = (c2 >> 8) & 0xff; b2 = c2 & 0xff
 
-    r = (r1 + ((r2 - r1) * (1 - alpha))).to_i & 0xff
-    g = (g1 + ((g2 - g1) * (1 - alpha))).to_i & 0xff
-    b = (b1 + ((b2 - b1) * (1 - alpha))).to_i & 0xff
+    # Per-channel blend `c1 + (c2 - c1) * (1 - alpha)`, computed in fixed point.
+    # The weight `(1 - alpha)` is materialized ONCE as a 16-bit fixed-point
+    # integer (0..65536) here, so the three per-channel computations below are
+    # pure integer (a multiply and an arithmetic shift) instead of three Float64
+    # multiplies plus three float→int truncations. `alpha` is a `Float | Int`
+    # union; touching it only in this one expression keeps the hot per-channel
+    # math monomorphic. Because the channel result is non-negative, the shift
+    # (floor) matches the old `.to_i` (truncation) exactly, and at 16-bit
+    # resolution the output equals the former float path for the exact weights
+    # callers use (alpha 0.5 -> w 32768); for arbitrary alpha it can differ by at
+    # most one step in a channel — visually identical. This is the per-cell
+    # compositing path (shadows, tints, plane blends), so the saved float work
+    # matters.
+    w = ((1.0 - alpha) * 65536).to_i
+    w = 0 if w < 0
+    w = 65536 if w > 65536
+
+    r = (r1 + (((r2 - r1) * w) >> 16)) & 0xff
+    g = (g1 + (((g2 - g1) * w) >> 16)) & 0xff
+    b = (b1 + (((b2 - b1) * w) >> 16)) & 0xff
 
     (r << 16) | (g << 8) | b
   end
