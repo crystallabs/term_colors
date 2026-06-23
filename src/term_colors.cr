@@ -247,6 +247,95 @@ module TermColors
     (r << 16) | (g << 8) | b
   end
 
+  # `0xRRGGBB` -> `{h (0..360), s (0..1), l (0..1)}`. The HSL counterpart of the
+  # HSV pair below; used to lighten/darken perceptually evenly (in HSL, lightness
+  # is a single axis), to compute relative luminance, etc.
+  def rgb_to_hsl(rgb : Int32) : Tuple(Float64, Float64, Float64)
+    r = ((rgb >> 16) & 0xff) / 255.0
+    g = ((rgb >> 8) & 0xff) / 255.0
+    b = (rgb & 0xff) / 255.0
+    max = {r, g, b}.max
+    min = {r, g, b}.min
+    l = (max + min) / 2.0
+    if max == min
+      return {0.0, 0.0, l} # achromatic
+    end
+    d = max - min
+    s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min)
+    h = case max
+        when r then (g - b) / d + (g < b ? 6.0 : 0.0)
+        when g then (b - r) / d + 2.0
+        else        (r - g) / d + 4.0
+        end
+    {(h * 60.0), s, l}
+  end
+
+  # `{h, s, l}` -> `0xRRGGBB` (inverse of `#rgb_to_hsl`).
+  def hsl_to_rgb(h : Float64, s : Float64, l : Float64) : Int32
+    h = h % 360.0
+    h += 360.0 if h < 0
+    if s <= 0.0
+      v = clamp_byte(l * 255.0)
+      return (v << 16) | (v << 8) | v
+    end
+    c = (1.0 - (2.0 * l - 1.0).abs) * s
+    x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs)
+    m = l - c / 2.0
+    r, g, b =
+      case h
+      when 0...60    then {c, x, 0.0}
+      when 60...120  then {x, c, 0.0}
+      when 120...180 then {0.0, c, x}
+      when 180...240 then {0.0, x, c}
+      when 240...300 then {x, 0.0, c}
+      else                {c, 0.0, x}
+      end
+    (clamp_byte((r + m) * 255.0) << 16) |
+      (clamp_byte((g + m) * 255.0) << 8) |
+      clamp_byte((b + m) * 255.0)
+  end
+
+  # Moves a color's lightness by *delta* (positive = lighter, negative = darker),
+  # clamped to `[0, 1]`. Saturation/hue are preserved (the work happens in HSL).
+  def adjust_lightness(rgb : Int32, delta : Float64) : Int32
+    h, s, l = rgb_to_hsl(rgb)
+    hsl_to_rgb(h, s, (l + delta).clamp(0.0, 1.0))
+  end
+
+  # Lightens *rgb* by *amount* (`0..1`) of lightness.
+  def lighten(rgb : Int32, amount : Float64) : Int32
+    adjust_lightness(rgb, amount.abs)
+  end
+
+  # Darkens *rgb* by *amount* (`0..1`) of lightness.
+  def darken(rgb : Int32, amount : Float64) : Int32
+    adjust_lightness(rgb, -amount.abs)
+  end
+
+  # Relative luminance (sRGB-weighted, `0..1`) — how *bright* a color reads, used
+  # to choose a contrasting foreground.
+  def luminance(rgb : Int32) : Float64
+    r = ((rgb >> 16) & 0xff) / 255.0
+    g = ((rgb >> 8) & 0xff) / 255.0
+    b = (rgb & 0xff) / 255.0
+    0.2126 * r + 0.7152 * g + 0.0722 * b
+  end
+
+  # Picks whichever of *dark*/*light* contrasts better against *bg*.
+  def readable_on(bg : Int32, dark : Int32, light : Int32) : Int32
+    luminance(bg) > 0.5 ? dark : light
+  end
+
+  # `0xRRGGBB` -> `"#rrggbb"`.
+  def hex(rgb : Int32) : String
+    "#%06x" % (rgb & 0xFFFFFF)
+  end
+
+  # Rounds and clamps a channel value into `0..255` (shared by the HSL math).
+  private def clamp_byte(value : Float64) : Int32
+    value.round.to_i.clamp(0, 255)
+  end
+
   # Converts an HSV color to a packed `0xRRGGBB` integer (24-bit RGB).
   #
   # *h* is a hue in degrees (wrapped into `0..360`); *s* and *v* are the
