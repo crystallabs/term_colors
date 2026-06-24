@@ -22,9 +22,6 @@ module TermColors
   # On overflow it is cleared wholesale (cheap, and the working set re-warms).
   CACHE_MATCH_LIMIT = 65_536
 
-  # Storage cache for `#blend` method
-  CACHE_BLEND = {} of Int32 => Int32
-
   # 16 XTerm Colors.
   #
   # (Values were taken from X11 sources, mapped to RGB, and then converted to these hex values.)
@@ -422,7 +419,12 @@ module TermColors
 
   # :ditto:
   def convert(color : String)
-    color = color.gsub(/[\- ]/, "")
+    # Most specs ("#ff8800", "white") contain no separators, so only pay for the
+    # regex rewrite when a `-` or ` ` is actually present. The unconditional
+    # `gsub` scanned every string with the regex engine on every call.
+    if color.includes?('-') || color.includes?(' ')
+      color = color.gsub(/[\- ]/, "")
+    end
     return hex_to_int color if color.starts_with? '#'
     if idx = ColorNames[color]?
       return idx == -1 ? -1 : hex_to_int(Xterm[idx])
