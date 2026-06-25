@@ -113,7 +113,7 @@ module TermColors
   # Takes color value and returns index of the nearest/closest matching color in the current palette.
   def match(r1 : String)
     hex = r1
-    if (hex[0] != '#')
+    if hex[0] != '#'
       raise "Color value must start with '#'"
     end
     hex = hex_to_rgb(hex)
@@ -153,12 +153,12 @@ module TermColors
 
         diff = color_distance(r1, g1, b1, r2, g2, b2)
 
-        if (diff == 0)
+        if diff == 0
           li = i
           break
         end
 
-        if (diff < ldiff)
+        if diff < ldiff
           ldiff = diff
           li = i
         end
@@ -188,7 +188,7 @@ module TermColors
   # Converts number to hex value with 2 places.
   def to_hex2(n)
     n = n.to_s 16
-    if (n.size < 2)
+    if n.size < 2
       n = "0" + n
     end
     n
@@ -197,7 +197,7 @@ module TermColors
   # Converts number to hex value with 4 places.
   def to_hex4(n)
     n = n.to_s 16
-    while (n.size < 4)
+    while n.size < 4
       n = "0" + n
     end
     n
@@ -394,13 +394,13 @@ module TermColors
     # Cascade through the palettes so e.g. a 256-color reduces 256->8->2.
     # These must be independent `if`s (not `elsif`): reducing to 2 colors
     # requires first collapsing a high color into the 8-color range.
-    if (color >= 16 && total <= 16)
+    if color >= 16 && total <= 16
       color = HI2LI[color]
     end
-    if (color >= 8 && total <= 8)
+    if color >= 8 && total <= 8
       color -= 8
     end
-    if (color >= 2 && total <= 2)
+    if color >= 2 && total <= 2
       color %= 2
     end
     color
