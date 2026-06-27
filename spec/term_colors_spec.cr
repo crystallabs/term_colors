@@ -99,6 +99,10 @@ describe TermColors do
     obj.hex_to_int("#fff").should eq 0xffffff
     obj.palette_to_rgb(0).should eq 0x000000
     obj.palette_to_rgb(15).should eq 0xffffff
+    # Out-of-range indices fall back to 0. Negative indices must NOT wrap around
+    # to a real palette entry via Crystal's `Array#[]?` negative-index semantics.
+    obj.palette_to_rgb(256).should eq 0
+    obj.palette_to_rgb(-1).should eq 0
   end
   it "builds colorspace-aware SGR color fragments" do
     obj = ClsColors.new
@@ -127,6 +131,9 @@ describe TermColors do
     # Saturation/value extremes.
     obj.hsv_i(120, 0.0).should eq 0xffffff      # s=0 -> white
     obj.hsv_i(120, 1.0, 0.0).should eq 0x000000 # v=0 -> black
+    # Fractional channels round, not truncate: hue 30 gives g=127.5 -> 128
+    # (0xff8000), matching the HSL path rather than flooring to 127 (0xff7f00).
+    obj.hsv_i(30).should eq 0xff8000
     # String form.
     obj.hsv(120).should eq "#00ff00"
     obj.hsv(0).should eq "#ff0000"

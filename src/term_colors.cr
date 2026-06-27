@@ -369,9 +369,13 @@ module TermColors
                  when 4 then {x, 0.0, c}
                  else        {c, 0.0, x}
                  end
-    r = ((rf + m) * 255).to_i.clamp(0, 255)
-    g = ((gf + m) * 255).to_i.clamp(0, 255)
-    b = ((bf + m) * 255).to_i.clamp(0, 255)
+    # Round (via the shared `clamp_byte`) rather than truncate: a bare `.to_i`
+    # floors every channel, biasing the result up to one step too dark and
+    # disagreeing with the HSL path (`hsl_to_rgb`), which already rounds. e.g. a
+    # channel of `127.5` must yield `128`, not `127`.
+    r = clamp_byte((rf + m) * 255)
+    g = clamp_byte((gf + m) * 255)
+    b = clamp_byte((bf + m) * 255)
     (r << 16) | (g << 8) | b
   end
 
@@ -457,7 +461,11 @@ module TermColors
   # Maps a 256-color palette index to its native 24-bit `0xRRGGBB` value (used
   # when parsing incoming `38;5;n`/ANSI SGR codes into the RGB-native form).
   def palette_to_rgb(idx : Int) : Int32
-    if c = HI2RGB[idx]?
+    # Guard `idx >= 0` explicitly: Crystal's `Array#[]?` treats a negative index
+    # as an offset from the end (e.g. `HI2RGB[-1]?` returns the LAST entry, not
+    # `nil`), so without this a negative index would silently yield a wrong color
+    # instead of the intended `0` fallback.
+    if idx >= 0 && (c = HI2RGB[idx]?)
       (c[0] << 16) | (c[1] << 8) | c[2]
     else
       0
