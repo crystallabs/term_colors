@@ -102,10 +102,10 @@ describe TermColors do
     # `convert` is the total color-spec parser: a malformed `#...` must fall back
     # to the terminal default (-1), the same as an unknown name or bad type,
     # rather than raising from the underlying hex parser.
-    obj.convert("#").should eq -1        # empty body
-    obj.convert("#12").should eq -1      # wrong length
-    obj.convert("#gg0000").should eq -1  # non-hex digit
-    obj.convert("#abcd").should eq -1    # 4 hex digits (neither #rgb nor #rrggbb)
+    obj.convert("#").should eq -1       # empty body
+    obj.convert("#12").should eq -1     # wrong length
+    obj.convert("#gg0000").should eq -1 # non-hex digit
+    obj.convert("#abcd").should eq -1   # 4 hex digits (neither #rgb nor #rrggbb)
     # Well-formed specs still parse, including after separator stripping.
     obj.convert("#fff").should eq 0xffffff
     obj.convert("#ff-88-00").should eq 0xff8800
