@@ -277,9 +277,7 @@ module TermColors
   # HSV pair below; used to lighten/darken perceptually evenly (in HSL, lightness
   # is a single axis), to compute relative luminance, etc.
   def rgb_to_hsl(rgb : Int32) : Tuple(Float64, Float64, Float64)
-    r = ((rgb >> 16) & 0xff) / 255.0
-    g = ((rgb >> 8) & 0xff) / 255.0
-    b = (rgb & 0xff) / 255.0
+    r, g, b = unpack_rgb_f(rgb)
     # Branch-pick the channel max/min directly instead of `{r, g, b}.max` /
     # `.min`. The tuple-reduction form builds two 3-tuples and runs two generic
     # `Comparable` reductions per call; the explicit comparisons below are pure
@@ -312,15 +310,9 @@ module TermColors
     c = (1.0 - (2.0 * l - 1.0).abs) * s
     x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs)
     m = l - c / 2.0
-    r, g, b =
-      case h
-      when 0...60    then {c, x, 0.0}
-      when 60...120  then {x, c, 0.0}
-      when 120...180 then {0.0, c, x}
-      when 180...240 then {0.0, x, c}
-      when 240...300 then {x, 0.0, c}
-      else                {c, 0.0, x}
-      end
+    # `h` is already wrapped into `0...360`, so flooring `h / 60` yields the same
+    # sextant `0..5` the explicit ranges used to select.
+    r, g, b = sextant_rgb((h / 60.0).to_i, c, x)
     (clamp_byte((r + m) * 255.0) << 16) |
       (clamp_byte((g + m) * 255.0) << 8) |
       clamp_byte((b + m) * 255.0)
@@ -346,9 +338,7 @@ module TermColors
   # Relative luminance (sRGB-weighted, `0..1`) — how *bright* a color reads, used
   # to choose a contrasting foreground.
   def luminance(rgb : Int32) : Float64
-    r = ((rgb >> 16) & 0xff) / 255.0
-    g = ((rgb >> 8) & 0xff) / 255.0
-    b = (rgb & 0xff) / 255.0
+    r, g, b = unpack_rgb_f(rgb)
     0.2126 * r + 0.7152 * g + 0.0722 * b
   end
 
@@ -374,6 +364,30 @@ module TermColors
     {(rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff}
   end
 
+  # Unpacks a packed `0xRRGGBB` integer into its `{r, g, b}` channels normalized
+  # to `0.0..1.0`. Shared by the float color-space paths (`#rgb_to_hsl`,
+  # `#luminance`) that previously each repeated the same `& 0xff` + `/ 255.0`.
+  private def unpack_rgb_f(rgb : Int) : Tuple(Float64, Float64, Float64)
+    r, g, b = unpack_rgb(rgb)
+    {r / 255.0, g / 255.0, b / 255.0}
+  end
+
+  # Maps a hue *sextant* (`0..5`) and the precomputed chroma components *c*/*x*
+  # to the `{r, g, b}` channel arrangement for that 60-degree slice of the color
+  # wheel. Shared by the HSL (`#hsl_to_rgb`) and HSV (`#hsv_i`) conversions,
+  # which differ only in how they derive the sextant — the mapping itself is
+  # identical, so both feed it through here.
+  private def sextant_rgb(sextant : Int, c : Float64, x : Float64) : Tuple(Float64, Float64, Float64)
+    case sextant
+    when 0 then {c, x, 0.0}
+    when 1 then {x, c, 0.0}
+    when 2 then {0.0, c, x}
+    when 3 then {0.0, x, c}
+    when 4 then {x, 0.0, c}
+    else        {c, 0.0, x}
+    end
+  end
+
   # Converts an HSV color to a packed `0xRRGGBB` integer (24-bit RGB).
   #
   # *h* is a hue in degrees (wrapped into `0..360`); *s* and *v* are the
@@ -385,14 +399,7 @@ module TermColors
     c = v * s
     x = c * (1 - (((hh / 60.0) % 2) - 1).abs)
     m = v - c
-    rf, gf, bf = case (hh.to_i // 60) % 6
-                 when 0 then {c, x, 0.0}
-                 when 1 then {x, c, 0.0}
-                 when 2 then {0.0, c, x}
-                 when 3 then {0.0, x, c}
-                 when 4 then {x, 0.0, c}
-                 else        {c, 0.0, x}
-                 end
+    rf, gf, bf = sextant_rgb((hh.to_i // 60) % 6, c, x)
     # Round (via the shared `clamp_byte`) rather than truncate: a bare `.to_i`
     # floors every channel, biasing the result up to one step too dark and
     # disagreeing with the HSL path (`hsl_to_rgb`), which already rounds. e.g. a
