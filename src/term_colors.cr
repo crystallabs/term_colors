@@ -448,7 +448,13 @@ module TermColors
     if color.includes?('-') || color.includes?(' ')
       color = color.gsub(/[\- ]/, "")
     end
-    return hex_to_int color if color.starts_with? '#'
+    # Only parse as hex when the spec is a well-formed `#rgb`/`#rrggbb`. A
+    # malformed `#...` (wrong length or a non-hex digit) would otherwise reach
+    # `hex_to_int` and raise from the underlying `String#to_i(16)`; `convert` is
+    # the total "parse a color spec" entry point and must degrade to the
+    # terminal default (`-1`), exactly as it already does for unknown names and
+    # unsupported types.
+    return hex_to_int color if hex_color? color
     if idx = ColorNames[color]?
       return idx == -1 ? -1 : hex_to_int(Xterm[idx])
     end
@@ -467,6 +473,14 @@ module TermColors
   # :nodoc:
   def convert(color)
     -1
+  end
+
+  # True only for a syntactically valid `#rgb`/`#rrggbb` hex color (leading `#`,
+  # length 4 or 7, every remaining character a hex digit). Lets `#convert` reject
+  # malformed specs before they reach the raising hex parser.
+  private def hex_color?(s : String) : Bool
+    return false unless (s.size == 4 || s.size == 7) && s.starts_with?('#')
+    (1...s.size).all? { |i| s[i].to_i?(16) }
   end
 
   # Converts a hex color value (`#abc` or `#rrggbb`) to a 24-bit `0xRRGGBB`

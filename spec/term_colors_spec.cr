@@ -97,6 +97,19 @@ describe TermColors do
     obj.convert({16, 32, 48}).should eq 0x102030
     obj.convert(:wrong).should eq -1
   end
+  it "degrades malformed hex specs to the default instead of raising" do
+    obj = ClsColors.new
+    # `convert` is the total color-spec parser: a malformed `#...` must fall back
+    # to the terminal default (-1), the same as an unknown name or bad type,
+    # rather than raising from the underlying hex parser.
+    obj.convert("#").should eq -1        # empty body
+    obj.convert("#12").should eq -1      # wrong length
+    obj.convert("#gg0000").should eq -1  # non-hex digit
+    obj.convert("#abcd").should eq -1    # 4 hex digits (neither #rgb nor #rrggbb)
+    # Well-formed specs still parse, including after separator stripping.
+    obj.convert("#fff").should eq 0xffffff
+    obj.convert("#ff-88-00").should eq 0xff8800
+  end
   it "maps hex strings and palette indices to native RGB" do
     obj = ClsColors.new
     obj.hex_to_int("#0cdb72").should eq 0x0cdb72
