@@ -403,7 +403,9 @@ module TermColors
   # fully-saturated, full-brightness color — the common case for color cycling.
   # For the allocation-free packed-integer form, see `#hsv_i`.
   def hsv(h : Int | Float, s : Float64 = 1.0, v : Float64 = 1.0) : String
-    "#%06x" % hsv_i(h, s, v)
+    # `hsv_i` already returns a value in `0..0xFFFFFF`, so this reuses `#hex`
+    # (the single `#rrggbb` formatter) rather than repeating the format literal.
+    hex hsv_i(h, s, v)
   end
 
   # Converts color into lower/smaller color space.
