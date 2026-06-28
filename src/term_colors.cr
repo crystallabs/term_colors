@@ -176,6 +176,15 @@ module TermColors
   end
 
   # :ditto:
+  #
+  # The `Tuple` overload mirrors `#match`/`#convert`, which already accept a
+  # `Tuple`, and notably makes `#rgb_to_hex` compose with `#hex_to_rgb` (its
+  # inverse), which itself returns a `Tuple` — e.g. `rgb_to_hex(hex_to_rgb(x))`.
+  def rgb_to_hex(r : Tuple)
+    rgb_to_hex r[0], r[1], r[2]
+  end
+
+  # :ditto:
   def rgb_to_hex(r : Colorize::ColorRGB)
     rgb_to_hex r.red, r.green, r.blue
   end

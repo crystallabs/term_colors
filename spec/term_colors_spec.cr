@@ -30,6 +30,10 @@ describe TermColors do
     obj.rgb_to_hex(255, 255, 255).should eq "#ffffff"
     obj.rgb_to_hex(12, 219, 114).should eq "#0cdb72"
     obj.rgb_to_hex(Colorize::ColorRGB.new 12, 219, 114).should eq "#0cdb72"
+    # Tuple input is accepted (mirrors `match`/`convert`), so `rgb_to_hex`
+    # composes with `hex_to_rgb` (its inverse), which returns a Tuple.
+    obj.rgb_to_hex({12, 219, 114}).should eq "#0cdb72"
+    obj.rgb_to_hex(obj.hex_to_rgb("#0cdb72")).should eq "#0cdb72"
     obj.hex_to_rgb("#fff").should eq Tuple.new(255, 255, 255)
     obj.hex_to_rgb("#000000").should eq({0, 0, 0})
     obj.hex_to_rgb("#23ce9a").should eq({35, 206, 154})
