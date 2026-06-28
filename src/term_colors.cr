@@ -454,12 +454,11 @@ module TermColors
   end
 
   # :ditto:
-  def convert(color : Tuple)
-    (color[0].to_i << 16) | (color[1].to_i << 8) | color[2].to_i
-  end
-
-  # :ditto:
-  def convert(color : Array)
+  #
+  # `Tuple` and `Array` share one body: both index with `[](Int)` and yield
+  # elements that respond to `.to_i`, so a single restriction packs either form
+  # of `{r, g, b}` into a 24-bit `0xRRGGBB` value identically.
+  def convert(color : Tuple | Array)
     (color[0].to_i << 16) | (color[1].to_i << 8) | color[2].to_i
   end
 
