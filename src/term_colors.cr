@@ -246,8 +246,8 @@ module TermColors
   # needed. The old palette-index `mix_colors`/`blend`/`_round` helpers have been
   # removed; consumers blend at full RGB precision and only reduce on output.
   def mix(c1 : Int, c2 : Int, alpha = 0.5) : Int32
-    r1 = (c1 >> 16) & 0xff; g1 = (c1 >> 8) & 0xff; b1 = c1 & 0xff
-    r2 = (c2 >> 16) & 0xff; g2 = (c2 >> 8) & 0xff; b2 = c2 & 0xff
+    r1, g1, b1 = unpack_rgb(c1)
+    r2, g2, b2 = unpack_rgb(c2)
 
     # Per-channel blend `c1 + (c2 - c1) * (1 - alpha)`, computed in fixed point.
     # The weight `(1 - alpha)` is materialized ONCE as a 16-bit fixed-point
@@ -365,6 +365,13 @@ module TermColors
   # Rounds and clamps a channel value into `0..255` (shared by the HSL math).
   private def clamp_byte(value : Float64) : Int32
     value.round.to_i.clamp(0, 255)
+  end
+
+  # Unpacks a packed `0xRRGGBB` integer into its `{r, g, b}` byte channels.
+  # Shared by the RGB-native paths (`#mix`, `#sgr_color`) that previously each
+  # repeated the same three `>> shift & 0xff` extractions inline.
+  private def unpack_rgb(rgb : Int) : Tuple(Int32, Int32, Int32)
+    {(rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff}
   end
 
   # Converts an HSV color to a packed `0xRRGGBB` integer (24-bit RGB).
@@ -512,9 +519,7 @@ module TermColors
   def sgr_color(color : Int, fg : Bool, colors : Int) : String
     return fg ? "39" : "49" if color == -1
 
-    r = (color >> 16) & 0xff
-    g = (color >> 8) & 0xff
-    b = color & 0xff
+    r, g, b = unpack_rgb(color)
 
     if colors >= 0x1000000
       return "#{fg ? 38 : 48};2;#{r};#{g};#{b}"
