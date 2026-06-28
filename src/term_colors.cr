@@ -232,7 +232,10 @@ module TermColors
   # propose a superior solution.
   # {1} http:#stackoverflow.com/questions/1633828
   def color_distance(r1, g1, b1, r2, g2, b2)
-    ((30 * (r1 - r2))**2) + ((59 * (g1 - g2))**2) + ((11 * (b1 - b2))**2)
+    dr = 30 &* (r1 - r2)
+    dg = 59 &* (g1 - g2)
+    db = 11 &* (b1 - b2)
+    (dr &* dr) &+ (dg &* dg) &+ (db &* db)
   end
 
   # Mixes two 24-bit RGB colors in RGB space. `alpha` is the opacity/weight of
