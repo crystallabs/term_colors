@@ -255,22 +255,14 @@ module TermColors
   # single axis in HSL), compute relative luminance, etc.
   def rgb_to_hsl(rgb : Int32) : Tuple(Float64, Float64, Float64)
     r, g, b = unpack_rgb_f(rgb)
-    # Branch-pick max/min directly instead of `{r, g, b}.max/.min` (tuple
-    # reduction); ~9% faster, identical results.
-    max = r > g ? (r > b ? r : b) : (g > b ? g : b)
-    min = r < g ? (r < b ? r : b) : (g < b ? g : b)
+    max, min = channel_max_min(r, g, b)
     l = (max + min) / 2.0
     if max == min
       return {0.0, 0.0, l} # achromatic
     end
     d = max - min
     s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min)
-    h = case max
-        when r then (g - b) / d + (g < b ? 6.0 : 0.0)
-        when g then (b - r) / d + 2.0
-        else        (r - g) / d + 4.0
-        end
-    {(h * 60.0), s, l}
+    {hue_deg(r, g, b, max, d), s, l}
   end
 
   # `{h, s, l}` -> `0xRRGGBB` (inverse of `#rgb_to_hsl`).
@@ -326,6 +318,13 @@ module TermColors
     "#%06x" % (rgb & 0xFFFFFF)
   end
 
+  # Public unpack of a packed `0xRRGGBB` integer into its `{r, g, b}` byte
+  # channels — the inverse of `#rgb`, for callers that hold a packed color and
+  # need the individual `0..255` channels.
+  def rgb_channels(rgb : Int) : Tuple(Int32, Int32, Int32)
+    unpack_rgb(rgb)
+  end
+
   # Rounds and clamps a channel value into `0..255` (shared by the HSL math).
   private def clamp_byte(value : Float64) : Int32
     value.round.to_i.clamp(0, 255)
@@ -344,9 +343,34 @@ module TermColors
     {r / 255.0, g / 255.0, b / 255.0}
   end
 
-  # Maps a hue *sextant* (`0..5`) and precomputed chroma components *c*/*x* to
-  # the `{r, g, b}` channel arrangement for that 60-degree slice of the color
-  # wheel. Shared by `#hsl_to_rgb` and `#hsv_i`, which only differ in deriving the sextant.
+  # Branch-pick the channel max/min directly instead of `{r, g, b}.max` / `.min`.
+  # The tuple-reduction form builds two 3-tuples and runs two generic `Comparable`
+  # reductions per call; the explicit comparisons here are pure `Float64` `<`/`>`
+  # and measured ~9% faster on this (per-color) path with identical results.
+  # Shared by `#rgb_to_hsl` and `#rgb_to_hsv`.
+  private def channel_max_min(r : Float64, g : Float64, b : Float64) : Tuple(Float64, Float64)
+    max = r > g ? (r > b ? r : b) : (g > b ? g : b)
+    min = r < g ? (r < b ? r : b) : (g < b ? g : b)
+    {max, min}
+  end
+
+  # Derives the hue (in degrees, `0..360`) from the RGB channels, the channel
+  # *max*, and the chroma *d* (`max - min`). Assumes `d != 0` (the achromatic case
+  # is handled by callers). Shared by `#rgb_to_hsl` and `#rgb_to_hsv`.
+  private def hue_deg(r : Float64, g : Float64, b : Float64, max : Float64, d : Float64) : Float64
+    h = case max
+        when r then (g - b) / d + (g < b ? 6.0 : 0.0)
+        when g then (b - r) / d + 2.0
+        else        (r - g) / d + 4.0
+        end
+    h * 60.0
+  end
+
+  # Maps a hue *sextant* (`0..5`) and the precomputed chroma components *c*/*x*
+  # to the `{r, g, b}` channel arrangement for that 60-degree slice of the color
+  # wheel. Shared by the HSL (`#hsl_to_rgb`) and HSV (`#hsv_i`) conversions,
+  # which differ only in how they derive the sextant — the mapping itself is
+  # identical, so both feed it through here.
   private def sextant_rgb(sextant : Int, c : Float64, x : Float64) : Tuple(Float64, Float64, Float64)
     case sextant
     when 0 then {c, x, 0.0}
@@ -384,6 +408,21 @@ module TermColors
   # allocation-free packed-integer form, see `#hsv_i`.
   def hsv(h : Int | Float, s : Float64 = 1.0, v : Float64 = 1.0) : String
     hex hsv_i(h, s, v)
+  end
+
+  # `0xRRGGBB` -> `{h (0..360), s (0..1), v (0..1)}`. HSV counterpart of
+  # `#rgb_to_hsl` (inverse of `#hsv_i`); shares the same hue derivation but
+  # reports value/saturation on the HSV axes rather than lightness.
+  def rgb_to_hsv(rgb : Int32) : Tuple(Float64, Float64, Float64)
+    r, g, b = unpack_rgb_f(rgb)
+    max, min = channel_max_min(r, g, b)
+    v = max
+    if max == min
+      return {0.0, 0.0, v} # achromatic
+    end
+    d = max - min
+    s = max == 0.0 ? 0.0 : d / max
+    {hue_deg(r, g, b, max, d), s, v}
   end
 
   # Converts color into lower/smaller color space.
