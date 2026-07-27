@@ -301,6 +301,30 @@ module TermColors
     adjust_lightness(rgb, -amount.abs)
   end
 
+  # A lighter shade of *color* ↔ Qt's `QColor::lighter(factor)`. Multiplicative
+  # (unlike the additive `#lighten`): `factor` is a percentage, so `150` scales
+  # lightness ×1.5, `100` is a no-op, and a value below `100` darkens.
+  # `factor <= 0` returns *color* unchanged (Qt leaves it unspecified).
+  #
+  # NOTE the scale is applied to HSL *lightness* (what the routines here
+  # expose), whereas Qt scales HSV *value*; results are visually close but not
+  # bit-identical to Qt.
+  def lighter(color : Int, factor : Int = 150) : Int32
+    return color.to_i32 if factor <= 0
+    h, s, l = rgb_to_hsl color.to_i32
+    hsl_to_rgb h, s, (l * factor / 100.0).clamp(0.0, 1.0)
+  end
+
+  # A darker shade of *color* ↔ Qt's `QColor::darker(factor)`. Multiplicative
+  # (unlike the additive `#darken`): `factor` is a percentage dividing
+  # lightness, so `200` scales it ×0.5, `100` is a no-op. `factor <= 0` returns
+  # *color* unchanged. See `#lighter` for the HSL-vs-HSV caveat.
+  def darker(color : Int, factor : Int = 200) : Int32
+    return color.to_i32 if factor <= 0
+    h, s, l = rgb_to_hsl color.to_i32
+    hsl_to_rgb h, s, (l * 100.0 / factor).clamp(0.0, 1.0)
+  end
+
   # Relative luminance (sRGB-weighted, `0..1`) — how *bright* a color reads, used
   # to choose a contrasting foreground.
   def luminance(rgb : Int32) : Float64
@@ -318,9 +342,18 @@ module TermColors
     "#%06x" % (rgb & 0xFFFFFF)
   end
 
+  # Packs three `0..255` channel bytes into a `0xRRGGBB` color. Channels are
+  # assumed already in range (callers clamp/quantize upstream). The inverse of
+  # `#rgb_channels`.
+  @[AlwaysInline]
+  def rgb(r : Int, g : Int, b : Int) : Int32
+    (r.to_i32 << 16) | (g.to_i32 << 8) | b.to_i32
+  end
+
   # Public unpack of a packed `0xRRGGBB` integer into its `{r, g, b}` byte
   # channels — the inverse of `#rgb`, for callers that hold a packed color and
   # need the individual `0..255` channels.
+  @[AlwaysInline]
   def rgb_channels(rgb : Int) : Tuple(Int32, Int32, Int32)
     unpack_rgb(rgb)
   end
@@ -462,6 +495,10 @@ module TermColors
     if color.includes?('-') || color.includes?(' ')
       color = color.gsub(/[\- ]/, "")
     end
+    # The two hex-with-alpha forms (`#rgba`, `#rrggbbaa`) are accepted by
+    # dropping the alpha channel — this is a pure color library with no
+    # compositing, so the alpha carries no meaning here.
+    color = strip_hex_alpha color
     # Only parse as hex when well-formed `#rgb`/`#rrggbb`; `convert` must
     # degrade to the terminal default (`-1`) for malformed specs, same as for
     # unknown names and unsupported types.
@@ -469,7 +506,25 @@ module TermColors
     if idx = ColorNames[color]?
       return idx == -1 ? -1 : hex_to_int(Xterm[idx])
     end
+    # Color keywords are case-insensitive in CSS/QSS; `ColorNames` has only
+    # lowercase keys, so retry a missed named lookup lower-cased.
+    if color.each_char.any?(&.ascii_uppercase?) && (idx = ColorNames[color.downcase]?)
+      return idx == -1 ? -1 : hex_to_int(Xterm[idx])
+    end
     -1
+  end
+
+  # Strips the alpha channel off the two hex-with-alpha forms (`#rgba`,
+  # `#rrggbbaa`), returning the plain `#rgb`/`#rrggbb` the parser understands;
+  # any other string is returned as-is.
+  private def strip_hex_alpha(color : String) : String
+    return color unless color.starts_with?('#')
+    case color.size
+    when 5 # #rgba -> #rgb
+      color[0, 4] if color[1, 4].each_char.all?(&.to_i?(16))
+    when 9 # #rrggbbaa -> #rrggbb
+      color[0, 7] if color[1, 8].each_char.all?(&.to_i?(16))
+    end || color
   end
 
   # :ditto:
@@ -534,6 +589,111 @@ module TermColors
     else
       "#{fg ? 38 : 48};5;#{idx}"
     end
+  end
+
+  # Allocation-free counterpart of `#sgr_color`: writes the SGR parameter
+  # fragment for one color straight into `io` rather than returning a fresh
+  # `String`. Additionally treats a monochrome target (`colors < 2`) like the
+  # default color: no palette entry can be meaningful there, so the terminal's
+  # own default is emitted.
+  def sgr_color_to(io : IO, color : Int, fg : Bool, colors : Int) : Nil
+    if color == -1 || colors < 2
+      io << (fg ? "39" : "49")
+      return
+    end
+
+    r, g, b = unpack_rgb(color)
+
+    if colors >= 0x1000000
+      io << (fg ? 38 : 48) << ";2;" << r << ';' << g << ';' << b
+      return
+    end
+
+    idx = reduce(match(r, g, b), colors)
+    if idx < 8
+      io << (fg ? 30 + idx : 40 + idx)
+    elsif idx < 16
+      io << (fg ? 90 + (idx - 8) : 100 + (idx - 8))
+    else
+      io << (fg ? 38 : 48) << ";5;" << idx
+    end
+  end
+
+  # -- CSS color functions ----------------------------------------------------
+
+  # A CSS `<number>`: optionally negative, integer or decimal.
+  CSS_NUM = /-?(?:\d+(?:\.\d+)?|\.\d+)/
+
+  # A single `rgb()` component: an optionally-signed number with an optional
+  # trailing `%`. The sign is load-bearing: CSS clamps a negative channel to
+  # 0, so it must be read as negative rather than as its magnitude
+  # (`rgb(-10, …)` is `0`, not `10`).
+  CSS_RGB_COMPONENT = /(#{CSS_NUM})(%)?/
+
+  # The `hsl()` first argument: a number with an optional CSS angle unit.
+  CSS_HUE = /(#{CSS_NUM})(deg|grad|rad|turn)?/i
+
+  # Parses a CSS `rgb(r, g, b)` / `rgba(r, g, b, a)` function body (commas or
+  # spaces) into `0xRRGGBB`. Each channel may be a `0..255` number or a
+  # `0%..100%` percentage (CSS allows either form); a `%` component is scaled
+  # to `0..255`; out-of-range/negative channels clamp. Alpha is ignored (this
+  # is a pure color library with no compositing). Returns `nil` when fewer
+  # than three components parse.
+  def parse_rgb_function(value : String) : Int32?
+    comps = value.scan(CSS_RGB_COMPONENT)
+    return if comps.size < 3
+    rgb css_component(comps[0]), css_component(comps[1]), css_component(comps[2])
+  end
+
+  # Parses a CSS `hsl(h, s%, l%)` / `hsla(...)` function body into `0xRRGGBB`.
+  # *h* honors the optional CSS angle unit (`deg`/`grad`/`rad`/`turn`,
+  # unitless = degrees); *s*/*l* are percentages. Returns `nil` when fewer
+  # than three numbers parse.
+  def parse_hsl_function(value : String) : Int32?
+    nums = value.scan(/(#{CSS_NUM})/).compact_map(&.[1].to_f?)
+    return if nums.size < 3
+    h = css_hue_degrees(value) % 360.0
+    s = (nums[1] / 100.0).clamp(0.0, 1.0)
+    l = (nums[2] / 100.0).clamp(0.0, 1.0)
+    hsl_to_rgb(h, s, l)
+  end
+
+  # One `rgb()` channel → a `0..255` int, scaling a `%` form from `0..100`.
+  private def css_component(m : Regex::MatchData) : Int32
+    # `to_f?`: an out-of-Float64-range channel literal clamps to 0 rather
+    # than raising out of a stylesheet cascade.
+    n = m[1].to_f? || return 0
+    n = n * 255.0 / 100.0 if m[2]?
+    # Clamp as a Float *before* `#to_i`: a wildly out-of-range channel
+    # (`rgb(99999999999, 0, 0)`) would overflow Int32 and raise in `#to_i`
+    # if converted first, instead of being clamped to 255.
+    n.round.clamp(0.0, 255.0).to_i
+  end
+
+  # The `hsl()` hue in degrees, honoring the optional CSS angle unit on the
+  # first argument: `turn` (1turn = 360°), `grad` (400grad = 360°), `rad`
+  # (2π rad = 360°), or `deg`/unitless (already degrees). Caller wraps the
+  # result into `0..360`.
+  private def css_hue_degrees(value : String) : Float64
+    return 0.0 unless m = value.match(CSS_HUE)
+    # `to_f?`: an out-of-Float64-range hue literal falls back to 0°.
+    n = m[1].to_f? || return 0.0
+    case m[2]?.try(&.downcase)
+    when "turn" then n * 360.0
+    when "grad" then n * 0.9 # 400grad == 360deg
+    when "rad"  then n * 180.0 / Math::PI
+    else             n # deg or unitless
+    end
+  end
+
+  # Precomputed `hsv_i` for every integer hue `0...360` at full saturation and
+  # value (`s = v = 1`). Index it only with a hue already reduced by `% 360`;
+  # `HSV_LUT[h]` is then bit-identical to `hsv_i(h)`. A variable `s`/`v` needs
+  # `hsv_i` itself. (Initialized through a throwaway `Data` since the mixin's
+  # methods aren't module methods.)
+  HSV_LUT = begin
+    d = Data.new
+    Array(Int32).new(360) { |h| d.hsv_i(h) }
   end
 
   # Represents Colors class. Use when a class is preferred over a module.
