@@ -609,7 +609,12 @@ module TermColors
       return
     end
 
-    idx = reduce(match(r, g, b), colors)
+    sgr_index_to(io, reduce(match(r, g, b), colors), fg)
+  end
+
+  # Writes the SGR fragment for palette index *idx*: the classic 30–47 /
+  # bright 90–107 codes when the index fits, `38;5;n` / `48;5;n` otherwise.
+  private def sgr_index_to(io : IO, idx : Int32, fg : Bool) : Nil
     if idx < 8
       io << (fg ? 30 + idx : 40 + idx)
     elsif idx < 16
@@ -693,7 +698,7 @@ module TermColors
   # methods aren't module methods.)
   HSV_LUT = begin
     d = Data.new
-    Array(Int32).new(360) { |h| d.hsv_i(h) }
+    Array(Int32).new(360) { |hue| d.hsv_i(hue) }
   end
 
   # Represents Colors class. Use when a class is preferred over a module.
