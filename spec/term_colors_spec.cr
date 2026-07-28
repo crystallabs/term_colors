@@ -105,7 +105,12 @@ describe TermColors do
     obj.convert("#").should eq -1       # empty body
     obj.convert("#12").should eq -1     # wrong length
     obj.convert("#gg0000").should eq -1 # non-hex digit
-    obj.convert("#abcd").should eq -1   # 4 hex digits (neither #rgb nor #rrggbb)
+    # `#abcd` is NOT malformed anymore: 4 hex digits is the `#rgba` short
+    # alpha form; the alpha channel is stripped (this is a pure color library
+    # with no compositing) and the remaining `#abc` parses normally.
+    obj.convert("#abcd").should eq obj.convert("#abc")
+    obj.convert("#11223344").should eq 0x112233 # #rrggbbaa long alpha form
+    obj.convert("#1122334").should eq -1        # 7 digits: no valid form
     # Well-formed specs still parse, including after separator stripping.
     obj.convert("#fff").should eq 0xffffff
     obj.convert("#ff-88-00").should eq 0xff8800
