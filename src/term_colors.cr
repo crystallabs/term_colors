@@ -7,7 +7,7 @@
 #     4. High color (256-color)
 #     5. TrueColor (16M-color/24-bit color)
 module TermColors
-  VERSION = "1.0.1"
+  VERSION = "2.0.1"
 
   # Storage cache for `#match` method
   CACHE_MATCH = {} of Int32 => Int32
