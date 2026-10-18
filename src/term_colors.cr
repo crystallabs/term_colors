@@ -576,30 +576,16 @@ module TermColors
   # TrueColor (`38;2;r;g;b`), 256-color (`38;5;n`), or 16/8-color ANSI
   # (`30..37`/`90..97`). `color` is a native color (`-1` for default, or
   # `0xRRGGBB`); `fg` selects foreground (38/3x/9x) vs background (48/4x/10x).
+  # A monochrome target (`colors < 2`) is treated like the default color: no
+  # palette entry can be meaningful there, so the terminal's own default is
+  # emitted.
   def sgr_color(color : Int, fg : Bool, colors : Int) : String
-    return fg ? "39" : "49" if color == -1
-
-    r, g, b = unpack_rgb(color)
-
-    if colors >= 0x1000000
-      return "#{fg ? 38 : 48};2;#{r};#{g};#{b}"
-    end
-
-    idx = reduce(match(r, g, b), colors)
-    if idx < 8
-      (fg ? 30 + idx : 40 + idx).to_s
-    elsif idx < 16
-      (fg ? 90 + (idx - 8) : 100 + (idx - 8)).to_s
-    else
-      "#{fg ? 38 : 48};5;#{idx}"
-    end
+    String.build(16) { |io| sgr_color_to(io, color, fg, colors) }
   end
 
   # Allocation-free counterpart of `#sgr_color`: writes the SGR parameter
   # fragment for one color straight into `io` rather than returning a fresh
-  # `String`. Additionally treats a monochrome target (`colors < 2`) like the
-  # default color: no palette entry can be meaningful there, so the terminal's
-  # own default is emitted.
+  # `String`.
   def sgr_color_to(io : IO, color : Int, fg : Bool, colors : Int) : Nil
     if color == -1 || colors < 2
       io << (fg ? "39" : "49")

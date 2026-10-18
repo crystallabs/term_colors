@@ -145,6 +145,13 @@ describe TermColors do
     obj.sgr_color(0xff8800, true, 256).should eq "38;5;208"
     obj.sgr_color(0xcd0000, true, 16).should eq "31"
     obj.sgr_color(-1, true, 256).should eq "39"
+    obj.sgr_color(0xffff00, false, 8).should eq "43"
+    obj.sgr_color(0xffffff, true, 16).should eq "97"
+    # Monochrome targets get the terminal default; both forms must agree.
+    obj.sgr_color(0xff0000, true, 1).should eq "39"
+    obj.sgr_color(0xff0000, false, 0).should eq "49"
+    String.build { |io| obj.sgr_color_to(io, 0xff0000, true, 1) }.should eq "39"
+    String.build { |io| obj.sgr_color_to(io, 0xff8800, true, 256) }.should eq "38;5;208"
   end
   it "has to_hex2 and to_hex4" do
     obj = ClsColors.new
