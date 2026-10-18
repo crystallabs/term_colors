@@ -645,7 +645,9 @@ module TermColors
   # unitless = degrees); *s*/*l* are percentages. Returns `nil` when fewer
   # than three numbers parse.
   def parse_hsl_function(value : String) : Int32?
-    nums = value.scan(/(#{CSS_NUM})/).compact_map(&.[1].to_f?)
+    # `CSS_NUM` itself, not an interpolated `/(#{CSS_NUM})/` literal: a regex
+    # literal with interpolation is compiled anew on every evaluation.
+    nums = value.scan(CSS_NUM).compact_map(&.[0].to_f?)
     return if nums.size < 3
     h = css_hue_degrees(value) % 360.0
     s = (nums[1] / 100.0).clamp(0.0, 1.0)

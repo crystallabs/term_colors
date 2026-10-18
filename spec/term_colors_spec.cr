@@ -153,6 +153,17 @@ describe TermColors do
     String.build { |io| obj.sgr_color_to(io, 0xff0000, true, 1) }.should eq "39"
     String.build { |io| obj.sgr_color_to(io, 0xff8800, true, 256) }.should eq "38;5;208"
   end
+  it "parses CSS rgb()/hsl() function bodies" do
+    obj = ClsColors.new
+    obj.parse_rgb_function("rgb(255, 136, 0)").should eq 0xff8800
+    obj.parse_rgb_function("rgba(100%, 50%, 0%, 0.5)").should eq 0xff8000
+    obj.parse_rgb_function("rgb(-10 300 0)").should eq 0x00ff00 # clamps
+    obj.parse_rgb_function("rgb(1, 2)").should be_nil
+    obj.parse_hsl_function("hsl(120, 100%, 50%)").should eq 0x00ff00
+    obj.parse_hsl_function("hsla(0.5turn, 100%, 50%, 1)").should eq 0x00ffff
+    obj.parse_hsl_function("hsl(100grad 100% 50%)").should eq 0x80ff00
+    obj.parse_hsl_function("hsl(0, 0%)").should be_nil
+  end
   it "has to_hex2 and to_hex4" do
     obj = ClsColors.new
     obj.to_hex2(7).should eq "07"
