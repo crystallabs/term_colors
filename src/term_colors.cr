@@ -304,9 +304,18 @@ module TermColors
     luminance(bg) > 0.5 ? dark : light
   end
 
+  # Lowercase hex digits, for `#hex`.
+  HEX_DIGITS = "0123456789abcdef".to_slice
+
   # `0xRRGGBB` -> `"#rrggbb"`.
   def hex(rgb : Int32) : String
-    "#%06x" % (rgb & 0xFFFFFF)
+    # Write the seven bytes directly: `"#%06x" % rgb` costs ~2x in time and
+    # allocations by going through the general formatter.
+    String.new(7) do |buf|
+      buf[0] = '#'.ord.to_u8
+      6.times { |i| buf[1 + i] = HEX_DIGITS[(rgb >> (20 - 4 * i)) & 0xf] }
+      {7, 7}
+    end
   end
 
   # Packs three `0..255` channel bytes into a `0xRRGGBB` color. Channels are

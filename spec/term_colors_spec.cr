@@ -211,6 +211,15 @@ describe TermColors do
     obj.lighter(0x800000).should eq 0xc00000
     obj.darker(0xff0000).should eq 0x800000
   end
+  it "formats packed colors as hex" do
+    obj = ClsColors.new
+    obj.hex(0x000000).should eq "#000000"
+    obj.hex(0xff8800).should eq "#ff8800"
+    obj.hex(0x0a0b0c).should eq "#0a0b0c"
+    obj.hex(0xffffff).should eq "#ffffff"
+    obj.hex(0x7f123456).should eq "#123456" # only the low 24 bits
+    (0...256).step(17) { |v| obj.hex(obj.rgb(v, 255 - v, v // 2)).should eq "#%02x%02x%02x" % {v, 255 - v, v // 2} }
+  end
   it "has to_hex2 and to_hex4" do
     obj = ClsColors.new
     obj.to_hex2(7).should eq "07"
