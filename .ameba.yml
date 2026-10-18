@@ -2,7 +2,7 @@
 #
 # Run with: ./bin/ameba   (auto-fix: ./bin/ameba --fix)
 
-# TODO/FIXME/etc. notes in comments are intentional roadmap markers here
-# (e.g. the "Add TrueColor functionality" note), not actionable debt.
+# TODO/FIXME/XXX notes in comments are intentional roadmap markers here (e.g.
+# the "strings -> symbols" note on `ColorNames`), not actionable debt.
 Documentation/DocumentationAdmonition:
   Enabled: false

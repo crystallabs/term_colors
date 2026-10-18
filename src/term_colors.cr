@@ -189,7 +189,7 @@ module TermColors
   end
 
   # Finds color similarity (weighted Euclidean distance, no color-space
-  # conversion needed). See http:#stackoverflow.com/questions/1633828
+  # conversion needed). See https://stackoverflow.com/questions/1633828
   def color_distance(r1, g1, b1, r2, g2, b2)
     dr = 30 &* (r1 - r2)
     dg = 59 &* (g1 - g2)
@@ -289,8 +289,11 @@ module TermColors
     hsl_to_rgb h, s, (l * 100.0 / factor).clamp(0.0, 1.0)
   end
 
-  # Relative luminance (sRGB-weighted, `0..1`) — how *bright* a color reads, used
-  # to choose a contrasting foreground.
+  # Perceived brightness (`0..1`) — how *bright* a color reads, used to choose a
+  # contrasting foreground. Uses the Rec. 709 / sRGB luminance weights applied
+  # directly to the gamma-encoded channels (no linearization), which is cheap
+  # and adequate for picking a readable fg/bg pair, but is *not* the WCAG
+  # relative luminance.
   def luminance(rgb : Int32) : Float64
     r, g, b = unpack_rgb_f(rgb)
     0.2126 * r + 0.7152 * g + 0.0722 * b
