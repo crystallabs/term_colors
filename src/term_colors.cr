@@ -125,7 +125,10 @@ module TermColors
 
   # :ditto:
   def match(r1 : Int, g1 : Int, b1 : Int)
-    hash : Int32 = (r1 << 16) | (g1 << 8) | b1
+    # Normalize to Int32 up front: the shifts below would overflow a narrow
+    # type (`UInt8`), and `color_distance` would underflow an unsigned one.
+    r1 = r1.to_i32; g1 = g1.to_i32; b1 = b1.to_i32
+    hash = rgb(r1, g1, b1)
 
     # Single hash probe on the cache-hit path; old `has_key?` + `[]` probed twice.
     CACHE_MATCH.fetch(hash) do
@@ -366,6 +369,7 @@ module TermColors
   # Unpacks a packed `0xRRGGBB` integer into its `{r, g, b}` byte channels.
   # Shared by `#mix`/`#sgr_color`.
   private def unpack_rgb(rgb : Int) : Tuple(Int32, Int32, Int32)
+    rgb = rgb.to_i32
     {(rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff}
   end
 

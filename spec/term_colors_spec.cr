@@ -78,6 +78,18 @@ describe TermColors do
     r = obj.match([229, 229, 235])
     r.should eq 7
   end
+  it "accepts any integer width where `Int` is declared" do
+    obj = ClsColors.new
+    # Packed colors and channels typed `Int` must work for every integer type,
+    # not just Int32: wider ones are narrowed, narrow ones (UInt8) widened
+    # before shifting so nothing overflows.
+    obj.rgb_channels(0xff8800_i64).should eq({255, 136, 0})
+    obj.rgb_channels(0xff8800_u32).should eq({255, 136, 0})
+    obj.mix(0xffffff_i64, 0_i64, 0.5).should eq 0x7f7f7f
+    obj.sgr_color(0xff8800_i64, true, 256).should eq "38;5;208"
+    obj.match(255_u8, 136_u8, 0_u8).should eq 208
+    obj.match(255_i64, 136_i64, 0_i64).should eq 208
+  end
   it "can mix RGB colors" do
     obj = ClsColors.new
     # `alpha` is the opacity/weight of the first color: 1.0 keeps it fully.
