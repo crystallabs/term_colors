@@ -111,6 +111,15 @@ describe TermColors do
     obj.convert("#ff8800").should eq 0xff8800
     obj.convert("white").should eq 0xe5e5e5 # name -> RGB
     obj.convert("default").should eq -1
+    obj.convert("WHITE").should eq 0xe5e5e5 # names are case-insensitive
+    obj.convert("Light Blue").should eq 0x5c5cff
+    obj.convert("bright-red").should eq 0xff0000
+    obj.convert("nosuchcolor").should eq -1
+    # Every named color resolves to the same RGB the Xterm hex table gives.
+    TermColors::ColorNames.each do |name, idx|
+      expected = idx < 0 ? -1 : obj.hex_to_int(TermColors::Xterm[idx])
+      obj.convert(name).should eq expected
+    end
     obj.convert([255, 255, 255]).should eq 0xffffff
     obj.convert({16, 32, 48}).should eq 0x102030
     obj.convert(:wrong).should eq -1

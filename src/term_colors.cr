@@ -465,15 +465,13 @@ module TermColors
     # degrade to the terminal default (`-1`) for malformed specs, same as for
     # unknown names and unsupported types.
     return hex_to_int color if hex_color? color
-    if idx = ColorNames[color]?
-      return idx == -1 ? -1 : hex_to_int(Xterm[idx])
-    end
     # Color keywords are case-insensitive in CSS/QSS; `ColorNames` has only
-    # lowercase keys, so retry a missed named lookup lower-cased.
-    if color.each_char.any?(&.ascii_uppercase?) && (idx = ColorNames[color.downcase]?)
-      return idx == -1 ? -1 : hex_to_int(Xterm[idx])
-    end
-    -1
+    # lowercase keys, so a missed lookup is retried lower-cased (the exact
+    # lookup goes first so the common all-lowercase hit allocates nothing).
+    idx = ColorNames[color]? || ColorNames[color.downcase]?
+    # Unknown name -> terminal default. A named index is a 16-color palette
+    # slot, and `HI2RGB[0, 16]` *is* the Xterm palette, so no hex parsing.
+    idx.nil? || idx < 0 ? -1 : palette_to_rgb(idx)
   end
 
   # Strips the alpha channel off the two hex-with-alpha forms (`#rgba`,
