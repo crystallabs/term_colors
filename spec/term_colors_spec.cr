@@ -171,6 +171,35 @@ describe TermColors do
     obj.parse_hsl_function("hsl(100grad 100% 50%)").should eq 0x80ff00
     obj.parse_hsl_function("hsl(0, 0%)").should be_nil
   end
+  it "converts between RGB and HSL" do
+    obj = ClsColors.new
+    obj.hsl_to_rgb(0.0, 1.0, 0.5).should eq 0xff0000
+    obj.hsl_to_rgb(120.0, 1.0, 0.5).should eq 0x00ff00
+    obj.hsl_to_rgb(240.0, 1.0, 0.5).should eq 0x0000ff
+    obj.hsl_to_rgb(0.0, 0.0, 0.5).should eq 0x808080   # achromatic
+    obj.hsl_to_rgb(-30.0, 1.0, 0.5).should eq 0xff0080 # negative hue wraps
+    obj.hsl_to_rgb(390.0, 1.0, 0.5).should eq 0xff8000 # >360 wraps
+    obj.rgb_to_hsl(0xff0000).should eq({0.0, 1.0, 0.5})
+    obj.rgb_to_hsl(0x808080).should eq({0.0, 0.0, 128 / 255.0})
+    obj.rgb_to_hsv(0x0000ff).should eq({240.0, 1.0, 1.0})
+    obj.rgb_to_hsv(0x000000).should eq({0.0, 0.0, 0.0})
+    # HSL and HSV paths agree on every pure hue.
+    (0...360).each do |hue|
+      obj.hsl_to_rgb(hue.to_f, 1.0, 0.5).should eq obj.hsv_i(hue)
+      TermColors::HSV_LUT[hue].should eq obj.hsv_i(hue)
+    end
+    # Round trips.
+    [0x123456, 0xff8800, 0x00ff7f, 0xabcdef].each do |c|
+      h, s, l = obj.rgb_to_hsl(c)
+      obj.hsl_to_rgb(h, s, l).should eq c
+      h, s, v = obj.rgb_to_hsv(c)
+      obj.hsv_i(h, s, v).should eq c
+    end
+    obj.lighten(0x800000, 0.25).should eq 0xff0000
+    obj.darken(0xff0000, 0.25).should eq 0x800000
+    obj.lighter(0x800000).should eq 0xc00000
+    obj.darker(0xff0000).should eq 0x800000
+  end
   it "has to_hex2 and to_hex4" do
     obj = ClsColors.new
     obj.to_hex2(7).should eq "07"

@@ -238,21 +238,12 @@ module TermColors
 
   # `{h, s, l}` -> `0xRRGGBB` (inverse of `#rgb_to_hsl`).
   def hsl_to_rgb(h : Float64, s : Float64, l : Float64) : Int32
-    h = h % 360.0
-    h += 360.0 if h < 0
     if s <= 0.0
       v = clamp_byte(l * 255.0)
       return rgb(v, v, v)
     end
     c = (1.0 - (2.0 * l - 1.0).abs) * s
-    x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs)
-    m = l - c / 2.0
-    # `h` is already wrapped into `0...360`, so flooring `h / 60` yields the
-    # same sextant `0..5` the explicit ranges used to select.
-    r, g, b = sextant_rgb((h / 60.0).to_i, c, x)
-    (clamp_byte((r + m) * 255.0) << 16) |
-      (clamp_byte((g + m) * 255.0) << 8) |
-      clamp_byte((b + m) * 255.0)
+    hcm_to_rgb(h, c, l - c / 2.0)
   end
 
   # Moves a color's lightness by *delta* (positive = lighter, negative = darker),
@@ -371,20 +362,29 @@ module TermColors
     h * 60.0
   end
 
-  # Maps a hue *sextant* (`0..5`) and the precomputed chroma components *c*/*x*
-  # to the `{r, g, b}` channel arrangement for that 60-degree slice of the color
-  # wheel. Shared by the HSL (`#hsl_to_rgb`) and HSV (`#hsv_i`) conversions,
-  # which differ only in how they derive the sextant — the mapping itself is
-  # identical, so both feed it through here.
-  private def sextant_rgb(sextant : Int, c : Float64, x : Float64) : Tuple(Float64, Float64, Float64)
-    case sextant
-    when 0 then {c, x, 0.0}
-    when 1 then {x, c, 0.0}
-    when 2 then {0.0, c, x}
-    when 3 then {0.0, x, c}
-    when 4 then {x, 0.0, c}
-    else        {c, 0.0, x}
-    end
+  # Converts hue *h* (degrees, any value — wrapped into `0...360`), chroma *c*
+  # and the per-channel offset *m* into a packed `0xRRGGBB`. This is the tail
+  # shared by the HSL (`#hsl_to_rgb`) and HSV (`#hsv_i`) conversions, which
+  # differ only in how they derive `c` and `m` from their own axes.
+  #
+  # `Float#%` takes the sign of its divisor, so `h % 360.0` is already
+  # non-negative and flooring `h / 60` yields the sextant `0..5` directly.
+  private def hcm_to_rgb(h : Float64, c : Float64, m : Float64) : Int32
+    h = h % 360.0
+    x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs)
+    r, g, b = case (h / 60.0).to_i
+              when 0 then {c, x, 0.0}
+              when 1 then {x, c, 0.0}
+              when 2 then {0.0, c, x}
+              when 3 then {0.0, x, c}
+              when 4 then {x, 0.0, c}
+              else        {c, 0.0, x}
+              end
+    # Round rather than truncate: `.to_i` floors, biasing up to one step too
+    # dark, and the HSL and HSV paths must agree bit-for-bit.
+    rgb clamp_byte((r + m) * 255.0),
+      clamp_byte((g + m) * 255.0),
+      clamp_byte((b + m) * 255.0)
   end
 
   # Converts an HSV color to a packed `0xRRGGBB` integer (24-bit RGB).
@@ -392,18 +392,8 @@ module TermColors
   # *h* is a hue in degrees (wrapped into `0..360`); *s* and *v* are saturation
   # and value in `0.0..1.0`. Allocation-free counterpart of `#hsv`.
   def hsv_i(h : Int | Float, s : Float64 = 1.0, v : Float64 = 1.0) : Int32
-    hh = h.to_f % 360.0
-    hh += 360.0 if hh < 0
     c = v * s
-    x = c * (1 - (((hh / 60.0) % 2) - 1).abs)
-    m = v - c
-    rf, gf, bf = sextant_rgb((hh.to_i // 60) % 6, c, x)
-    # Round via `clamp_byte` rather than truncate: `.to_i` floors, biasing up to
-    # one step too dark, and disagrees with `hsl_to_rgb` which already rounds.
-    r = clamp_byte((rf + m) * 255)
-    g = clamp_byte((gf + m) * 255)
-    b = clamp_byte((bf + m) * 255)
-    (r << 16) | (g << 8) | b
+    hcm_to_rgb(h.to_f, c, v - c)
   end
 
   # Converts an HSV color to a `#rrggbb` hex string.
@@ -425,9 +415,9 @@ module TermColors
     if max == min
       return {0.0, 0.0, v} # achromatic
     end
+    # `max > min >= 0` here, so `max` is non-zero and the division is safe.
     d = max - min
-    s = max == 0.0 ? 0.0 : d / max
-    {hue_deg(r, g, b, max, d), s, v}
+    {hue_deg(r, g, b, max, d), d / max, v}
   end
 
   # Converts color into lower/smaller color space.
