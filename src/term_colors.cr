@@ -103,24 +103,15 @@ module TermColors
 
   # Takes color value and returns index of the nearest/closest matching color in the current palette.
   def match(r1 : String)
-    hex = r1
-    if hex[0] != '#'
+    if r1[0]? != '#'
       raise "Color value must start with '#'"
     end
-    hex = hex_to_rgb(hex)
-    r1 = hex[0]; g1 = hex[1]; b1 = hex[2]
-    match r1, g1, b1
+    match hex_to_rgb(r1)
   end
 
   # :ditto:
-  def match(r1 : Array)
-    b1 = r1[2]; g1 = r1[1]; r1 = r1[0]
-    match r1, g1, b1
-  end
-
-  # :ditto:
-  def match(r1 : Tuple)
-    match *r1
+  def match(r1 : Array | Tuple)
+    match r1[0], r1[1], r1[2]
   end
 
   # :ditto:
@@ -162,16 +153,11 @@ module TermColors
     end
   end
 
-  # Converts RGB to hex color value (#color)
-  def rgb_to_hex(r : Array)
-    rgb_to_hex r[0], r[1], r[2]
-  end
-
-  # :ditto:
+  # Converts RGB to hex color value (#color).
   #
-  # Lets `#rgb_to_hex` compose with `#hex_to_rgb` (its inverse), which returns
-  # a `Tuple` — e.g. `rgb_to_hex(hex_to_rgb(x))`.
-  def rgb_to_hex(r : Tuple)
+  # Accepts a `Tuple` as well as an `Array` so it composes with `#hex_to_rgb`
+  # (its inverse), which returns a `Tuple` — e.g. `rgb_to_hex(hex_to_rgb(x))`.
+  def rgb_to_hex(r : Array | Tuple)
     rgb_to_hex r[0], r[1], r[2]
   end
 
@@ -181,39 +167,23 @@ module TermColors
   end
 
   # :ditto:
-  def rgb_to_hex(r, g, b)
-    "#" + to_hex2(r) + to_hex2(g) + to_hex2(b)
+  def rgb_to_hex(r : Int, g : Int, b : Int)
+    hex rgb(r, g, b)
   end
 
   # Converts number to hex value with 2 places.
   def to_hex2(n)
-    n = n.to_s 16
-    if n.size < 2
-      n = "0" + n
-    end
-    n
+    n.to_s(16).rjust(2, '0')
   end
 
   # Converts number to hex value with 4 places.
   def to_hex4(n)
-    n = n.to_s 16
-    while n.size < 4
-      n = "0" + n
-    end
-    n
+    n.to_s(16).rjust(4, '0')
   end
 
   # Converts hex color value (#col or #color) to {r,g,b}.
-  def hex_to_rgb(hex : String)
-    if hex.size == 4
-      # Converts #abc into #aabbcc
-      hex = hex[0].to_s + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]
-    end
-    col = hex[1..-1].to_i 16
-    r = (col >> 16) & 0xff
-    g = (col >> 8) & 0xff
-    b = col & 0xff
-    {r, g, b}
+  def hex_to_rgb(hex : String) : Tuple(Int32, Int32, Int32)
+    unpack_rgb hex_to_int(hex)
   end
 
   # Finds color similarity (weighted Euclidean distance, no color-space
@@ -246,11 +216,9 @@ module TermColors
     w = 0 if w < 0
     w = 65536 if w > 65536
 
-    r = (r1 + (((r2 - r1) * w) >> 16)) & 0xff
-    g = (g1 + (((g2 - g1) * w) >> 16)) & 0xff
-    b = (b1 + (((b2 - b1) * w) >> 16)) & 0xff
-
-    (r << 16) | (g << 8) | b
+    rgb (r1 + (((r2 - r1) * w) >> 16)) & 0xff,
+      (g1 + (((g2 - g1) * w) >> 16)) & 0xff,
+      (b1 + (((b2 - b1) * w) >> 16)) & 0xff
   end
 
   # `0xRRGGBB` -> `{h (0..360), s (0..1), l (0..1)}`. HSL counterpart of the HSV
@@ -274,7 +242,7 @@ module TermColors
     h += 360.0 if h < 0
     if s <= 0.0
       v = clamp_byte(l * 255.0)
-      return (v << 16) | (v << 8) | v
+      return rgb(v, v, v)
     end
     c = (1.0 - (2.0 * l - 1.0).abs) * s
     x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs)
@@ -367,7 +335,7 @@ module TermColors
   end
 
   # Unpacks a packed `0xRRGGBB` integer into its `{r, g, b}` byte channels.
-  # Shared by `#mix`/`#sgr_color`.
+  # Shared by `#mix`/`#sgr_color`/`#hex_to_rgb`.
   private def unpack_rgb(rgb : Int) : Tuple(Int32, Int32, Int32)
     rgb = rgb.to_i32
     {(rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff}
@@ -536,7 +504,7 @@ module TermColors
   # `Tuple` and `Array` share one body: both index with `[](Int)` and yield
   # `.to_i`-able elements, so one method packs either form of `{r, g, b}`.
   def convert(color : Tuple | Array)
-    (color[0].to_i << 16) | (color[1].to_i << 8) | color[2].to_i
+    rgb(color[0].to_i, color[1].to_i, color[2].to_i)
   end
 
   # :nodoc:
@@ -554,8 +522,15 @@ module TermColors
   # Converts a hex color value (`#abc` or `#rrggbb`) to a 24-bit `0xRRGGBB`
   # integer.
   def hex_to_int(hex : String) : Int32
-    r, g, b = hex_to_rgb hex
-    (r << 16) | (g << 8) | b
+    col = hex[1..].to_i(16)
+    if hex.size == 4
+      # Expand `#abc` into `#aabbcc` arithmetically: each nibble `n` becomes
+      # the byte `nn`, i.e. `n * 0x11`, which avoids building a 7-char string.
+      col = (((col >> 8) & 0xf) * 0x11) << 16 |
+            (((col >> 4) & 0xf) * 0x11) << 8 |
+            (col & 0xf) * 0x11
+    end
+    col
   end
 
   # Maps a 256-color palette index to its native 24-bit `0xRRGGBB` value (used
@@ -565,7 +540,7 @@ module TermColors
     # as an offset from the end (`HI2RGB[-1]?` returns the last entry, not
     # `nil`), which would silently yield the wrong color instead of `0`.
     if idx >= 0 && (c = HI2RGB[idx]?)
-      (c[0] << 16) | (c[1] << 8) | c[2]
+      rgb(c[0], c[1], c[2])
     else
       0
     end

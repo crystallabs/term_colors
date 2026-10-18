@@ -37,6 +37,8 @@ describe TermColors do
     obj.hex_to_rgb("#fff").should eq Tuple.new(255, 255, 255)
     obj.hex_to_rgb("#000000").should eq({0, 0, 0})
     obj.hex_to_rgb("#23ce9a").should eq({35, 206, 154})
+    obj.hex_to_rgb("#ABC").should eq({0xaa, 0xbb, 0xcc})
+    obj.hex_to_rgb("#1a2").should eq({0x11, 0xaa, 0x22})
   end
   it "has ccolors and ncolors" do
     TermColors::HI2LN[0].should eq "black"
@@ -77,6 +79,10 @@ describe TermColors do
     r.should eq 7
     r = obj.match([229, 229, 235])
     r.should eq 7
+    obj.match("#e5e5e5").should eq 7
+    obj.match("#fff").should eq 15
+    expect_raises(Exception, /must start with/) { obj.match("ffffff") }
+    expect_raises(Exception, /must start with/) { obj.match("") }
   end
   it "accepts any integer width where `Int` is declared" do
     obj = ClsColors.new
@@ -131,6 +137,7 @@ describe TermColors do
     obj = ClsColors.new
     obj.hex_to_int("#0cdb72").should eq 0x0cdb72
     obj.hex_to_int("#fff").should eq 0xffffff
+    obj.hex_to_int("#1a2").should eq 0x11aa22
     obj.palette_to_rgb(0).should eq 0x000000
     obj.palette_to_rgb(15).should eq 0xffffff
     # Out-of-range indices fall back to 0. Negative indices must NOT wrap around
