@@ -101,7 +101,7 @@ module TermColors
 
   # Mapping of high color (256) indices to hex color values.
   # Derived from `HI2RGB` (which `bin/generate_colors_2.js` also emits in this form).
-  HI2HH = HI2RGB.map { |c| "#%02x%02x%02x" % c }
+  HI2HH = HI2RGB.map { |rgb| "#%02x%02x%02x" % rgb }
 
   # Takes color value and returns index of the nearest/closest matching color in the current palette.
   def match(r1 : String)

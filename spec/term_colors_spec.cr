@@ -200,11 +200,11 @@ describe TermColors do
       TermColors::HSV_LUT[hue].should eq obj.hsv_i(hue)
     end
     # Round trips.
-    [0x123456, 0xff8800, 0x00ff7f, 0xabcdef].each do |c|
-      h, s, l = obj.rgb_to_hsl(c)
-      obj.hsl_to_rgb(h, s, l).should eq c
-      h, s, v = obj.rgb_to_hsv(c)
-      obj.hsv_i(h, s, v).should eq c
+    [0x123456, 0xff8800, 0x00ff7f, 0xabcdef].each do |color|
+      h, s, l = obj.rgb_to_hsl(color)
+      obj.hsl_to_rgb(h, s, l).should eq color
+      h, s, v = obj.rgb_to_hsv(color)
+      obj.hsv_i(h, s, v).should eq color
     end
     obj.lighten(0x800000, 0.25).should eq 0xff0000
     obj.darken(0xff0000, 0.25).should eq 0x800000
