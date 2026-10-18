@@ -42,6 +42,7 @@ describe TermColors do
   end
   it "has ccolors and ncolors" do
     TermColors::HI2LN[0].should eq "black"
+    TermColors::HI2LN[208].should eq "red"
     TermColors::HI2LN[255].should eq "white"
     TermColors::HI2LN.size.should eq 256
 
@@ -51,6 +52,7 @@ describe TermColors do
   end
   it "has colors and vcolors" do
     TermColors::HI2HH[0].should eq "#000000"
+    TermColors::HI2HH[208].should eq "#ff8700"
     TermColors::HI2HH[255].should eq "#eeeeee"
     TermColors::HI2HH.size.should eq 256
 
