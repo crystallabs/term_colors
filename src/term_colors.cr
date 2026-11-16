@@ -103,6 +103,27 @@ module TermColors
   # Derived from `HI2RGB` (which `bin/generate_colors_2.js` also emits in this form).
   HI2HH = HI2RGB.map { |rgb| "#%02x%02x%02x" % rgb }
 
+  # xterm's 88-color palette as RGB: indices 0-15 are the ANSI colors, 16-79 a
+  # 4x4x4 cube (`16 + 16r + 4g + b`), 80-87 a gray ramp.
+  XTERM88_RGB = begin
+    levels = {0x00, 0x8b, 0xcd, 0xff}
+    pal = HI2RGB[0, 16]
+    levels.each do |r|
+      levels.each do |g|
+        levels.each { |b| pal << {r, g, b} }
+      end
+    end
+    {0x2e, 0x5c, 0x73, 0x8b, 0xa2, 0xb9, 0xd0, 0xe7}.each { |v| pal << {v, v, v} }
+    pal
+  end
+
+  # Mapping of high color (256) indices to the nearest 88-color palette
+  # index; filled on first use by `#reduce`.
+  HI2XTERM88 = [] of Int32
+
+  # Storage cache for `#match88`, bounded by `CACHE_MATCH_LIMIT`.
+  CACHE_MATCH_88 = {} of Int32 => Int32
+
   # Takes color value and returns index of the nearest/closest matching color in the current palette.
   def match(r1 : String)
     if r1[0]? != '#'
@@ -125,34 +146,43 @@ module TermColors
 
     # Single hash probe on the cache-hit path; old `has_key?` + `[]` probed twice.
     CACHE_MATCH.fetch(hash) do
-      # ldiff = Float64::INFINITY
-      ldiff = Int32::MAX # Match type of `CACHE_MATCH` above.
-      li = -1
-      i = 0
-
-      while i < HI2RGB.size
-        c = HI2RGB[i]
-        r2 = c[0]
-        g2 = c[1]
-        b2 = c[2]
-
-        diff = color_distance(r1, g1, b1, r2, g2, b2)
-
-        if diff == 0
-          li = i
-          break
-        end
-
-        if diff < ldiff
-          ldiff = diff
-          li = i
-        end
-        i += 1
-      end
-
+      li = nearest_index(HI2RGB, r1, g1, b1)
       CACHE_MATCH.clear if CACHE_MATCH.size >= CACHE_MATCH_LIMIT
       CACHE_MATCH[hash] = li
     end
+  end
+
+  # Like `#match`, but against xterm's 88-color palette (`XTERM88_RGB`).
+  def match88(r1 : Int, g1 : Int, b1 : Int) : Int32
+    r1 = r1.to_i32; g1 = g1.to_i32; b1 = b1.to_i32
+    hash = rgb(r1, g1, b1)
+
+    CACHE_MATCH_88.fetch(hash) do
+      li = nearest_index(XTERM88_RGB, r1, g1, b1)
+      CACHE_MATCH_88.clear if CACHE_MATCH_88.size >= CACHE_MATCH_LIMIT
+      CACHE_MATCH_88[hash] = li
+    end
+  end
+
+  # Index of the entry of *palette* nearest to the color by `#color_distance`;
+  # an exact match wins, and the lowest index wins a tie.
+  private def nearest_index(palette : Array(Tuple(Int32, Int32, Int32)), r1 : Int32, g1 : Int32, b1 : Int32) : Int32
+    ldiff = Int32::MAX # Match type of `CACHE_MATCH` above.
+    li = -1
+    i = 0
+
+    while i < palette.size
+      c = palette[i]
+      diff = color_distance(r1, g1, b1, c[0], c[1], c[2])
+      return i if diff == 0
+
+      if diff < ldiff
+        ldiff = diff
+        li = i
+      end
+      i += 1
+    end
+    li
   end
 
   # Converts RGB to hex color value (#color).
@@ -214,9 +244,10 @@ module TermColors
     # path by at most one step per channel — visually identical. This is the
     # per-cell compositing path (shadows, tints, plane blends), so avoiding
     # float ops matters.
-    w = ((1.0 - alpha) * 65536).to_i
-    w = 0 if w < 0
-    w = 65536 if w > 65536
+    # Clamped as a Float before `to_i`, so an out-of-range or NaN *alpha*
+    # can't overflow the conversion (NaN fails both tests and becomes 0).
+    wf = (1.0 - alpha) * 65536
+    w = wf >= 65536 ? 65536 : (wf > 0 ? wf.to_i : 0)
 
     rgb (r1 + (((r2 - r1) * w) >> 16)) & 0xff,
       (g1 + (((g2 - g1) * w) >> 16)) & 0xff,
@@ -335,8 +366,11 @@ module TermColors
   end
 
   # Rounds and clamps a channel value into `0..255` (shared by the HSL math).
+  # Clamped as a Float first, so a non-finite value (from a NaN or infinite
+  # saturation/lightness/value) can't overflow `to_i`; NaN becomes 0.
   private def clamp_byte(value : Float64) : Int32
-    value.round.to_i.clamp(0, 255)
+    return 0 if value.nan?
+    value.clamp(0.0, 255.0).round.to_i
   end
 
   # Unpacks a packed `0xRRGGBB` integer into its `{r, g, b}` byte channels.
@@ -384,7 +418,9 @@ module TermColors
   # `Float#%` takes the sign of its divisor, so `h % 360.0` is already
   # non-negative and flooring `h / 60` yields the sextant `0..5` directly.
   private def hcm_to_rgb(h : Float64, c : Float64, m : Float64) : Int32
-    h = h % 360.0
+    # A non-finite hue (an overflowing CSS `turn`/`rad` hue, say) would make
+    # the sextant `to_i` below raise; it falls back to 0°.
+    h = h.finite? ? h % 360.0 : 0.0
     x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs)
     r, g, b = case (h / 60.0).to_i
               when 0 then {c, x, 0.0}
@@ -439,10 +475,18 @@ module TermColors
   # ```
   # reduce(color, @tput.colors)
   # ```
+  #
+  # A *total* of 88 maps a 256-palette index to the nearest entry of xterm's
+  # 88-color palette. Any other total strictly between 16 and 256 names no
+  # known palette, so only indices 0-15 are trusted there and it reduces like
+  # a 16-color terminal.
   def reduce(color, total)
+    if color >= 16 && total == 88
+      return hi_to_xterm88(color)
+    end
     # Independent `if`s (not `elsif`): reducing to 2 colors requires first
     # collapsing a high color into the 8-color range (256->8->2).
-    if color >= 16 && total <= 16
+    if color >= 16 && total < 256
       color = HI2LI[color]
     end
     if color >= 8 && total <= 8
@@ -452,6 +496,14 @@ module TermColors
       color %= 2
     end
     color
+  end
+
+  # 256-palette index -> nearest 88-color palette index.
+  private def hi_to_xterm88(color : Int) : Int32
+    if HI2XTERM88.empty?
+      HI2RGB.each { |c| HI2XTERM88 << nearest_index(XTERM88_RGB, c[0], c[1], c[2]) }
+    end
+    HI2XTERM88[color]
   end
 
   # Parses a color spec into the native color value: `-1` for the terminal
@@ -576,7 +628,10 @@ module TermColors
       return
     end
 
-    sgr_index_to(io, reduce(match(r, g, b), colors), fg)
+    # Matched against the 88-color palette directly rather than through the
+    # 256-color one, which would quantize twice.
+    idx = colors == 88 ? match88(r, g, b) : reduce(match(r, g, b), colors)
+    sgr_index_to(io, idx, fg)
   end
 
   # Writes the SGR fragment for palette index *idx*: the classic 30–47 /
