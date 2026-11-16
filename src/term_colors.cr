@@ -7,7 +7,7 @@
 #     4. High color (256-color)
 #     5. TrueColor (16M-color/24-bit color)
 module TermColors
-  VERSION = "2.0.2"
+  VERSION = "2.1.0"
 
   # Storage cache for `#match` method
   CACHE_MATCH = {} of Int32 => Int32
@@ -108,9 +108,9 @@ module TermColors
   XTERM88_RGB = begin
     levels = {0x00, 0x8b, 0xcd, 0xff}
     pal = HI2RGB[0, 16]
-    levels.each do |r|
-      levels.each do |g|
-        levels.each { |b| pal << {r, g, b} }
+    levels.each do |red|
+      levels.each do |green|
+        levels.each { |blue| pal << {red, green, blue} }
       end
     end
     {0x2e, 0x5c, 0x73, 0x8b, 0xa2, 0xb9, 0xd0, 0xe7}.each { |v| pal << {v, v, v} }
@@ -501,7 +501,7 @@ module TermColors
   # 256-palette index -> nearest 88-color palette index.
   private def hi_to_xterm88(color : Int) : Int32
     if HI2XTERM88.empty?
-      HI2RGB.each { |c| HI2XTERM88 << nearest_index(XTERM88_RGB, c[0], c[1], c[2]) }
+      HI2RGB.each { |rgb| HI2XTERM88 << nearest_index(XTERM88_RGB, rgb[0], rgb[1], rgb[2]) }
     end
     HI2XTERM88[color]
   end
